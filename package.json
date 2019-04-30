@@ -1,0 +1,59 @@
+{
+  "name": "aio-cli-plugin-telemetry",
+  "description": "Adobe I/O cli tracking",
+  "version": "0.0.0",
+  "author": "Jesse MacFadyen @purplecabbage",
+  "bugs": "https://github.com/purplecabbage/aio-cli-plugin-telemetry/issues",
+  "dependencies": {
+    "@oclif/command": "^1.5.13",
+    "@oclif/config": "^1.12.12",
+    "insight": "^0.10.3"
+  },
+  "devDependencies": {
+    "@oclif/dev-cli": "^1.22.0",
+    "@oclif/plugin-help": "^2.1.6",
+    "eslint": "^5.16.0",
+    "eslint-config-oclif": "^3.1.0",
+    "globby": "^8.0.2"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "files": [
+    "/npm-shrinkwrap.json",
+    "/oclif.manifest.json",
+    "/src",
+    "/yarn.lock"
+  ],
+  "homepage": "https://github.com/purplecabbage/aio-cli-plugin-telemetry",
+  "keywords": [
+    "oclif-plugin"
+  ],
+  "license": "Apache-2.0",
+  "oclif": {
+    "commands": "./src/commands",
+    "bin": "oclif-example",
+    "devPlugins": [
+      "@oclif/plugin-help"
+    ],
+    "hooks": {
+      "init": [
+        "./src/hooks/init"
+      ],
+      "prerun": [
+        "./src/hooks/prerun"
+      ],
+      "command_not_found": [
+        "./src/hooks/command_not_found"
+      ]
+    }
+  },
+  "repository": "purplecabbage/aio-cli-plugin-telemetry",
+  "scripts": {
+    "postpack": "rm -f oclif.manifest.json",
+    "posttest": "eslint .",
+    "prepack": "oclif-dev manifest && oclif-dev readme",
+    "test": "echo NO TESTS",
+    "version": "oclif-dev readme && git add README.md"
+  }
+}
