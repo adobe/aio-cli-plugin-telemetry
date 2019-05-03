@@ -1,6 +1,6 @@
 {
   "name": "aio-cli-plugin-telemetry",
-  "description": "Adobe I/O cli tracking",
+  "description": "Adobe I/O cli telemetry",
   "version": "0.0.0",
   "author": "Jesse MacFadyen @purplecabbage",
   "bugs": "https://github.com/purplecabbage/aio-cli-plugin-telemetry/issues",
@@ -27,6 +27,7 @@
   ],
   "homepage": "https://github.com/purplecabbage/aio-cli-plugin-telemetry",
   "keywords": [
+    "ecosystem:@adobe/aio-cli-plugin",
     "oclif-plugin"
   ],
   "license": "Apache-2.0",
@@ -44,7 +45,7 @@
         "./src/hooks/prerun"
       ],
       "command_not_found": [
-        "./src/hooks/command_not_found"
+        "./src/hooks/command-not-found"
       ]
     }
   },
