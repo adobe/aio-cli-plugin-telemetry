@@ -2,6 +2,8 @@
 const Insight = require('insight')
 let trackingCode = 'UA-139146041-1'
 
+let isDisabledForCommand = false
+
 let Messages = {}
 Messages.PromptPreamble = '\nHow you use Adobe I/O CLI provides us with important data that we can use to make\n' +
   'our products better. Please read our privacy policy for more information on the\n' +
@@ -27,7 +29,10 @@ module.exports = {
     insight.optOut = true
   },
   isEnabled: () => {
-    return insight.optOut === false
+    return insight.optOut === false && !isDisabledForCommand
+  },
+  disableForCommand: () => {
+    isDisabledForCommand = true
   },
   isNull: () => {
     return insight.optOut === undefined
