@@ -19,7 +19,7 @@ $ npm install -g aio-cli-plugin-telemetry
 $ oclif-example COMMAND
 running command...
 $ oclif-example (-v|--version|version)
-aio-cli-plugin-telemetry/0.1.1-next darwin-x64 node-v12.22.1
+aio-cli-plugin-telemetry/0.1.1-next.0 darwin-x64 node-v12.22.1
 $ oclif-example --help [COMMAND]
 USAGE
   $ oclif-example COMMAND
@@ -46,5 +46,5 @@ DESCRIPTION
   Extra documentation goes here
 ```
 
-_See code: [src/commands/telemetry/index.js](https://github.com/purplecabbage/aio-cli-plugin-telemetry/blob/v0.1.1-next/src/commands/telemetry/index.js)_
+_See code: [src/commands/telemetry/index.js](https://github.com/purplecabbage/aio-cli-plugin-telemetry/blob/v0.1.1-next.0/src/commands/telemetry/index.js)_
 <!-- commandsstop -->
