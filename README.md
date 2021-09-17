@@ -19,7 +19,7 @@ $ npm install -g aio-cli-plugin-telemetry
 $ oclif-example COMMAND
 running command...
 $ oclif-example (-v|--version|version)
-aio-cli-plugin-telemetry/0.0.0 darwin-x64 node-v8.9.4
+aio-cli-plugin-telemetry/0.1.0 darwin-x64 node-v12.22.1
 $ oclif-example --help [COMMAND]
 USAGE
   $ oclif-example COMMAND
@@ -28,23 +28,23 @@ USAGE
 <!-- usagestop -->
 # Commands
 <!-- commands -->
-* [`oclif-example hello`](#oclif-example-hello)
+* [`oclif-example telemetry [STATE]`](#oclif-example-telemetry-state)
 
-## `oclif-example hello`
+## `oclif-example telemetry [STATE]`
 
 Describe the command here
 
 ```
 USAGE
-  $ oclif-example hello
+  $ oclif-example telemetry [STATE]
 
-OPTIONS
-  -n, --name=name  name to print
+ARGUMENTS
+  STATE  (on|off|yes|no) set telemetry state
 
 DESCRIPTION
   ...
   Extra documentation goes here
 ```
 
-_See code: [src/commands/hello.js](https://github.com/purplecabbage/aio-cli-plugin-telemetry/blob/v0.0.0/src/commands/hello.js)_
+_See code: [src/commands/telemetry/index.js](https://github.com/purplecabbage/aio-cli-plugin-telemetry/blob/v0.1.0/src/commands/telemetry/index.js)_
 <!-- commandsstop -->
