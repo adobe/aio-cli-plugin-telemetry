@@ -59,10 +59,10 @@
   },
   "repository": "purplecabbage/aio-cli-plugin-telemetry",
   "scripts": {
-    "postpack": "rm -f oclif.manifest.json",
-    "_posttest": "eslint .",
     "prepack": "oclif-dev manifest && oclif-dev readme",
-    "test": "echo NO TESTS",
-    "version": "oclif-dev readme && git add README.md"
+    "postpack": "rm -f oclif.manifest.json",
+    "version": "oclif-dev readme && git add README.md",
+    "lint": "eslint src test e2e",
+    "test": "jest --ci && npm run lint"
   }
 }
