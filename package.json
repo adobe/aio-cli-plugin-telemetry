@@ -45,8 +45,14 @@
       "prerun": [
         "./src/hooks/prerun"
       ],
+      "postrun": [
+        "./src/hooks/postrun"
+      ],
       "command_not_found": [
         "./src/hooks/command-not-found"
+      ],
+      "telemetry": [
+        "./src/hooks/telemetry"
       ]
     }
   },
