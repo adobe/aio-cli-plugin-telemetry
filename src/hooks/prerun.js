@@ -3,9 +3,13 @@ const telemetryLib = require('../telemetry-lib')
 const debug = require('debug')('aio-cli-plugin-telemetry')
 
 module.exports = async function (opts) {
-  if(opts.argv.indexOf('--no-telemetry') > -1) {
+  // console.log('prerun ', Date.now() - global.commandHookStartTime)
+  global.prerunTimer = Date.now()
+
+  // console.log('opts.argv = ', opts)
+  if (opts.argv.indexOf('--no-telemetry') > -1) {
     debug('--no-telemetry flag found. This command will not be tracked.')
-    opts.argv.splice(opts.argv.indexOf('--no-telemetry'),1)
+    opts.argv.splice(opts.argv.indexOf('--no-telemetry'), 1)
     telemetryLib.disableForCommand()
   }
 
