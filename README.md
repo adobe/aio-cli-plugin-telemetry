@@ -31,7 +31,7 @@ data we collect. http://www.adobe.com/privacy.html
 <!-- commands -->
 * [`aio telemetry on|off`](#aio-telemetry-state)
 
-## `oclif-example telemetry [STATE]`
+## `aio telemetry [STATE]`
 
 Describe the command here
 
