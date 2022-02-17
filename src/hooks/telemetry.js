@@ -10,23 +10,19 @@ governing permissions and limitations under the License.
 */
 
 const telemetryLib = require('../telemetry-lib')
+const debug = require('debug')('aio-telemetry:telemetry')
 
 module.exports = async function (opts) {
-  
-  // todo: enable storing telemetry index/token in root config pjson
-  // console.log('opts.config.pjson = ', opts.config.pjson)
+  debug('telemetry hook was called by : ', opts.config.userAgent)
+  // opts.id : app:list
+  // opts.userAgent : @adobe/aio-cli/8.2.0 darwin-x64 node-v14.18.0
 
-  // todo: include userAgent in all telemetry events, it includes node version, os, cli version
-  // console.log('userAgent = ', opts.config.userAgent)
-  // >> userAgent =  @adobe/aio-cli/8.2.0 darwin-x64 node-v14.19.0
-  global.commandHookStartTime = Date.now()
-  // init event logging is currently disabled as it is similar to prerun
-  return new Promise(resolve => {
-    if (telemetryLib.isNull()) {
-      // let's ask!
-      telemetryLib.prompt(resolve)
-    } else {
-      resolve()
-    }
-  })
+  debug('opts = ', process.argv.slice(2))
+
+  if (telemetryLib.isEnabled()) {
+    debug('telemetry - prerun hook =>', opts.Command.id)
+    telemetryLib.trackEvent('telemetry-event',
+      opts.id,
+      opts.userAgent)
+  }
 }
