@@ -2,8 +2,8 @@
   "name": "aio-cli-plugin-telemetry",
   "description": "Adobe I/O cli telemetry",
   "version": "0.1.1-next.0",
-  "author": "Jesse MacFadyen @purplecabbage",
-  "bugs": "https://github.com/purplecabbage/aio-cli-plugin-telemetry/issues",
+  "author": "Adobe Inc.",
+  "bugs": "https://github.com/adobe/aio-cli-plugin-telemetry/issues",
   "dependencies": {
     "@oclif/command": "^1.5.13",
     "@oclif/config": "^1.12.12",
@@ -26,7 +26,7 @@
     "/src",
     "/yarn.lock"
   ],
-  "homepage": "https://github.com/purplecabbage/aio-cli-plugin-telemetry",
+  "homepage": "https://github.com/adobe/aio-cli-plugin-telemetry",
   "keywords": [
     "ecosystem:@adobe/aio-cli-plugin",
     "oclif-plugin"
@@ -56,7 +56,7 @@
       ]
     }
   },
-  "repository": "purplecabbage/aio-cli-plugin-telemetry",
+  "repository": "adobe/aio-cli-plugin-telemetry",
   "scripts": {
     "prepack": "oclif-dev manifest && oclif-dev readme",
     "postpack": "rm -f oclif.manifest.json",
