@@ -10,7 +10,7 @@ governing permissions and limitations under the License.
 */
 
 const telemetryLib = require('../telemetry-lib')
-const debug = require('debug')('aio-cli-plugin-telemetry')
+const debug = require('debug')('aio-telemetry:pre')
 
 module.exports = async function (opts) {
   // console.log('prerun ', Date.now() - global.commandHookStartTime)
