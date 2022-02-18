@@ -10,7 +10,7 @@ governing permissions and limitations under the License.
 */
 
 const telemetryLib = require('../telemetry-lib')
-const debug = require('debug')('aio-cli-plugin-telemetry')
+const debug = require('debug')('aio-telemetry:not-found')
 
 module.exports = async function (opts) {
   if (telemetryLib.isEnabled()) {
