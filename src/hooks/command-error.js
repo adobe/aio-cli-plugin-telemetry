@@ -10,18 +10,15 @@ governing permissions and limitations under the License.
 */
 
 const telemetryLib = require('../telemetry-lib')
-const debug = require('debug')('aio-telemetry:post')
+const debug = require('debug')('aio-telemetry:error')
 
-module.exports = async function (opts) {
-  const dT = Date.now() - global.prerunTimer
-  debug('command time: ', dT)
+module.exports = async function (info) {
 
+  console.log('command-error !!! message = ', process.argv.slice(2))
+  // console.log('err ', info.config)
   if (telemetryLib.isEnabled()) {
-    console.log('telemetry - postrun hook =>', opts.Command.id)
-    // here we log flags, but not flag values
-    telemetryLib.trackEvent('postrun',
-      opts.Command.id,
-      opts.argv.filter(arg => arg.indexOf('-') === 0).join(','),
-      dT)
+    telemetryLib.trackEvent('error',
+      opts.id,
+      opts.userAgent)
   }
 }

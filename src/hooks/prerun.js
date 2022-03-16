@@ -13,7 +13,6 @@ const telemetryLib = require('../telemetry-lib')
 const debug = require('debug')('aio-telemetry:pre')
 
 module.exports = async function (opts) {
-  // console.log('prerun ', Date.now() - global.commandHookStartTime)
   global.prerunTimer = Date.now()
 
   // console.log('opts.argv = ', opts)
