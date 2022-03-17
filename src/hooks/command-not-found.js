@@ -13,8 +13,6 @@ const telemetryLib = require('../telemetry-lib')
 const debug = require('debug')('aio-telemetry:not-found')
 
 module.exports = async function (opts) {
-  if (telemetryLib.isEnabled()) {
-    debug('tracking command-not-found =>', opts.id )
-    telemetryLib.trackEvent('command-not-found', opts.id, '', '')
-  }
+  debug('tracking command-not-found =>', opts.id )
+  telemetryLib.trackEvent('command-not-found', opts.id)
 }
