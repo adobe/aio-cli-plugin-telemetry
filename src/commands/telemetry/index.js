@@ -14,15 +14,15 @@ const telemetryLib = require('../../telemetry-lib')
 
 class IndexCommand extends Command {
   async run() {
+
     const {args, flags} = this.parse(IndexCommand)
-0
     if (flags.reset) {
       telemetryLib.reset()
       this.log('resetting telemetry')
     } else {
       switch (args.state) {
       case 'on':
-      case 'yes':  {// fallthrough
+      case 'yes':  { // fallthrough
         telemetryLib.enable()
         this.log(telemetryLib.Messages.TelemetryOnMessage)
         break
@@ -45,22 +45,22 @@ class IndexCommand extends Command {
   }
 }
 
-IndexCommand.description = `Describe the command here
-...
-Extra documentation goes here
+IndexCommand.description = `Help us improve the Adobe I/O CLI
+
+Allow the Adobe I/O CLI to collect anonymous usage data
 `
 
 IndexCommand.flags = {
   reset: flags.boolean({
-    hidden: true,
-  }),
+    hidden: true
+  })
 }
 
 IndexCommand.args = [{
   name: 'state',
   required: false,
   description: 'set telemetry state',
-  options: ['on', 'off', 'yes', 'no'],
+  options: ['on', 'off', 'yes', 'no']
 }]
 
 module.exports = IndexCommand
