@@ -12,17 +12,21 @@ governing permissions and limitations under the License.
 const telemetryLib = require('../telemetry-lib')
 const debug = require('debug')('aio-telemetry:telemetry')
 
-module.exports = async function (opts) {
-  debug('telemetry hook was called by : ', opts.config.userAgent)
-  // opts.id : app:list
-  // opts.userAgent : @adobe/aio-cli/8.2.0 darwin-x64 node-v14.18.0
+/**
+ * todo:
+ * telemetry event is an optional event, so it can come from any other command by firing a hook
+ * the things we want to track with this will vary so this needs to be refactored to include 
+ * {other} data than the normal events we track
+ * things tracked here could be things like:
+ *  - user created app from template
+ *  - user stored log-forwarding config
+ *  - user used feature flag
+ *  - user installed something we want to track
+ *  - that thing we never thought would happen did
+ * this event should not cause a telemetry prompt to popup, if telemetry is off it should
+ * just be ignored
+ */
 
-  debug('opts = ', process.argv.slice(2))
-
-  if (telemetryLib.isEnabled()) {
-    debug('telemetry - prerun hook =>', opts.Command.id)
-    telemetryLib.trackEvent('telemetry-event',
-      opts.id,
-      opts.userAgent)
-  }
+module.exports = async function ({data}) {
+  await telemetryLib.trackEvent('telemetry-custom-event', data)
 }
