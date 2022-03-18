@@ -14,5 +14,5 @@ const debug = require('debug')('aio-telemetry:not-found')
 
 module.exports = async function (opts) {
   debug('tracking command-not-found =>', opts.id )
-  telemetryLib.trackEvent('command-not-found', opts.id)
+  await telemetryLib.trackEvent('command-not-found', opts.id)
 }
