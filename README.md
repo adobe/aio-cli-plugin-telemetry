@@ -3,10 +3,13 @@ aio-cli-plugin-telemetry
 
 Adobe I/O cli usage telemetry
 
+[![License](https://img.shields.io/npm/l/@adobe/aio-cli-plugin-telemetry.svg)](https://github.com/adobe/aio-cli-plugin-telemetry/blob/master/package.json)
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
-[![Version](https://img.shields.io/npm/v/aio-cli-plugin-telemetry.svg)](https://npmjs.org/package/aio-cli-plugin-telemetry)
-[![Downloads/week](https://img.shields.io/npm/dw/aio-cli-plugin-telemetry.svg)](https://npmjs.org/package/aio-cli-plugin-telemetry)
-[![License](https://img.shields.io/npm/l/aio-cli-plugin-telemetry.svg)](https://github.com/purplecabbage/aio-cli-plugin-telemetry/blob/master/package.json)
+[![Version](https://img.shields.io/npm/v/@adobe/aio-cli-plugin-telemetry.svg)](https://npmjs.org/package/@adobe/aio-cli-plugin-telemetry)
+[![Downloads/week](https://img.shields.io/npm/dw/@adobe/aio-cli-plugin-telemetry.svg)](https://npmjs.org/package/@adobe/aio-cli-plugin-telemetry)
+[![Codecov Coverage](https://img.shields.io/codecov/c/github/adobe/aio-cli-plugin-telemetry/master.svg?style=flat-square)](https://codecov.io/gh/adobe/aio-cli-plugin-telemetry/)
+[![Github Issues](https://img.shields.io/github/issues/adobe/aio-cli-plugin-telemetry.svg)](https://github.com/adobe/aio-cli-plugin-telemetry/issues)
+[![Github Pull Requests](https://img.shields.io/github/issues-pr/adobe/aio-cli-plugin-telemetry.svg)](https://github.com/adobe/aio-cli-plugin-telemetry/pulls) 
 
 <!-- toc -->
 * [Usage](#usage)
