@@ -13,20 +13,18 @@ const telemetryLib = require('../telemetry-lib')
 const debug = require('debug')('aio-telemetry:pre')
 
 module.exports = async function (opts) {
-  // console.log('prerun ', Date.now() - global.commandHookStartTime)
+  // we keep globals because we could do some user facing telemetry to tell them how long a command ran
+  // even if we don't post this to the telemetry server
   global.prerunTimer = Date.now()
-
-  // console.log('opts.argv = ', opts)
   if (opts.argv.indexOf('--no-telemetry') > -1) {
     debug('--no-telemetry flag found. This command will not be tracked.')
+    // remove our flag
     opts.argv.splice(opts.argv.indexOf('--no-telemetry'), 1)
     telemetryLib.disableForCommand()
-  }
-
-  if (telemetryLib.isEnabled()) {
-    debug('telemetry - prerun hook =>', opts.Command.id)
-    telemetryLib.trackEvent('prerun',
-      opts.Command.id,
-      opts.argv.filter(arg => arg.indexOf('-') === 0).join(','))
+  } else {
+    const flags = opts.argv.filter(arg => arg.indexOf('-') === 0)
+    // Potentially we could also store if this command/plugin is `core`
+    // and `version` - but we need to evaluate with recent oclif changes
+    telemetryLib.trackPrerun(opts.Command.id, flags, global.prerunTimer)
   }
 }

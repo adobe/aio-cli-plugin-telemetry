@@ -10,28 +10,106 @@ governing permissions and limitations under the License.
 */
 
 const Insight = require('insight')
-let trackingCode = 'UA-139146041-1'
+const fetch = require('node-fetch')
+const debug = require('debug')('aio-telemetry:telemetry-lib')
 
+const postUrl = 'https://dcs.adobedc.net/collection/ffb5bdcefe744485c5c968662012f91293eee10f5dac4ca009beb14d7c028424?asynchronous=true'
 let isDisabledForCommand = false
 
+const productName = 'Adobe I/O CLI'
 let Messages = {}
-Messages.PromptPreamble = '\nHow you use Adobe I/O CLI provides us with important data that we can use to make\n' +
-  'our products better. Please read our privacy policy for more information on the\n' +
-  'data we collect. http://www.adobe.com/privacy.html'
-Messages.PromptMessage = 'Would you like to allow Adobe I/O CLI to collect anonymous usage data?'
-Messages.TelemetryOffMessage = '\nTelemetry is off. \nIf you would like to turn analytics on, simply run `aio telemetry on`\n'
-Messages.TelemetryOnMessage = '\nTelemetry is on! Nice, you are helping us improve Adobe I/O CLI.\n' +
-  'If you would like to turn analytics off, simply run `aio telemetry off`\n'
+Messages.PromptPreamble = `
+How you use ${productName} provides us with important data that we can use to make
+our products better. Please read our privacy policy for more information on the
+data we collect. http://www.adobe.com/privacy.html`
 
-// Google Analytics tracking code
+Messages.PromptMessage = `Would you like to allow ${productName} to collect anonymous usage data?`
+Messages.TelemetryOffMessage = `
+Telemetry is off.
+If you would like to turn telemetry on, simply run \`aio telemetry on\``
+
+Messages.TelemetryOnMessage = `
+Telemetry is on! Nice, you are helping us improve ${productName}
+If you would like to turn telemetry off, simply run \`aio telemetry off\``
+
+// Google Analytics tracking code has been replace, not using ga but still using insight
 let pkgJson = require('../package.json')
 let insight = new Insight({
-  trackingCode: trackingCode,
+  trackingCode: 'unused',
   pkg: pkgJson,
 })
 
+// this is set by the init hook, ex. @adobe/aio-cli@8.2.0
+let rootCliVersion = "?"
+let prerunEvent
+
+/**
+ * @description tracks the event
+ * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
+ * @param {string} command what command was being run
+ * @param {Array<string>} flags on the command line
+ * @param {string} eventData additional data, like the error message, or custom telemetry payload
+ * @returns null
+ */
+async function trackEvent (eventType, eventData) {
+
+  // prerunEvent will be null when telemetry-prompt event fires, this happens before
+  // any command is actually run, so we want to ignore the command+flags in this case
+  //
+  if (!prerunEvent) {
+    prerunEvent = { command: '', flags: [], start: Date.now() }
+  }
+  if (insight.optOut || isDisabledForCommand) {
+    debug('Telemetry is off. Not logging telemetry event', eventType)
+    return
+  } else {
+    const timestamp = Date.now()
+    const duration = timestamp - prerunEvent.start
+    const fetchConfig = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-adobe-flow-id': '6990c252-370b-45d7-99f5-9fc0e5edc0d9',
+        'x-api-key': 'adobe_io',
+        'sandbox-name': 'developer-lifecycle-dev1'
+      }
+    }
+    fetchConfig.body = JSON.stringify({
+      'id': Math.floor(timestamp * Math.random()),
+      'timestamp': timestamp,
+      '_adobeio': {
+        'eventType': eventType,
+        'eventData': eventData,
+        'cliVersion': rootCliVersion,
+        'clientId': insight.clientId,
+        'command': prerunEvent.command,
+        'commandDuration': duration,
+        'commandFlags': prerunEvent.flags,
+        'commandSuccess': eventType !== 'command-error',
+        'nodeVersion': process.version,
+        'osNameVersion': insight.os
+      }
+    })
+    console.log('posting telemetry event:', fetchConfig)
+    try {
+      const response = await fetch(postUrl, fetchConfig)
+      console.log('response.ok = ', eventType, response.ok)
+    } catch (exc) {
+      console.log('error reaching telemetry server')
+    }
+  }
+}
+
+function trackPrerun (command, flags, start) {
+  prerunEvent = { command, flags, start }
+}
+
 module.exports = {
-  Messages: Messages,
+  Messages,
+  setCliVersion: ( versionString ) => {
+    rootCliVersion = versionString
+    global.commandHookStartTime = Date.now()
+  },
   enable: () => {
     insight.optOut = false
   },
@@ -47,14 +125,8 @@ module.exports = {
   isNull: () => {
     return insight.optOut === undefined
   },
-  trackEvent: (cat, act, lbl, val) => {
-    insight.trackEvent({
-      category: cat || 'category',
-      action: act || '-',
-      label: lbl || '-',
-      value: val || 0,
-    })
-  },
+  trackEvent,
+  trackPrerun,
   // secret api for testing
   reset: () => {
     insight.optOut = undefined
@@ -65,26 +137,18 @@ module.exports = {
       if (optIn) {
         // user has accepted, we will thank them and track this
         insight.optOut = false
-        insight.trackEvent({
-          category: 'telemetry-prompt',
-          action: 'accepted',
-          label: '',
-        })
+        trackEvent('telemetry-prompt', 'accepted')
         console.log(Messages.TelemetryOnMessage)
       }
       else {
         // user has declined, we still want to track this
         insight.optOut = false
-        insight.trackEvent({
-          category: 'telemetry-prompt',
-          action: 'declined',
-          label: '',
-        })
+        trackEvent('telemetry-prompt','declined')
         insight.optOut = true
         console.log(Messages.TelemetryOffMessage)
       }
       resolve()
     })
-  },
+  }
 }
 

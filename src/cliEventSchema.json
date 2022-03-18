@@ -1,0 +1,15 @@
+{
+  "id": "eventId",
+  "timestamp": "{{nowEpoc}}",
+  "_adobeio": {
+    "cliVersion": "cliVersion",
+    "clientId": "clientId",
+    "command": "command",
+    "commandDuration": 0,
+    "commandFlags": "commandFlags",
+    "commandSuccess": true,
+    "nodeVersion": "nodeVersion",
+    "osNameVersion": "osNameVersion"
+  }
+}
+

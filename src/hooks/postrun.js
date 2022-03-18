@@ -13,15 +13,10 @@ const telemetryLib = require('../telemetry-lib')
 const debug = require('debug')('aio-telemetry:post')
 
 module.exports = async function (opts) {
+  console.log('postrun opts = ', opts)
   const dT = Date.now() - global.prerunTimer
-  debug('command time: ', dT) // todo: add this to telemetry event ( how long the command took)
-  debug('opts = ', process.argv.slice(2))
-
-  if (telemetryLib.isEnabled()) {
-    debug('telemetry - postrun hook =>', opts.Command.id)
-    telemetryLib.trackEvent('postrun',
-      opts.Command.id,
-      opts.argv.filter(arg => arg.indexOf('-') === 0).join(','),
-      dT)
-  }
+  debug('command time: ', dT)
+  await telemetryLib.trackEvent('postrun',
+    opts.Command.id,
+    opts.argv.filter(arg => arg.indexOf('-') === 0).join(','))
 }
