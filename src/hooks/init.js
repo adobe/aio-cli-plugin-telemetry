@@ -13,11 +13,9 @@ const telemetryLib = require('../telemetry-lib')
 
 module.exports = async function (opts) {
   telemetryLib.setCliVersion(opts.config.name + '@' + opts.config.version)
-  // todo: enable storing telemetry index/token in root config pjson
-  // console.log('opts.config.pjson = ', opts.config.pjson)
-
   global.commandHookStartTime = Date.now()
-  // init event logging is currently disabled as it is similar to prerun
+  // init event does not post telemetry, it stores some info that will be used later
+  // this will prompt to optIn/Out if telemetry.optIn is undefined
   return new Promise(resolve => {
     if (telemetryLib.isNull()) {
       // let's ask!
