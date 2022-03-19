@@ -12,12 +12,9 @@
 
 const fetch = require('node-fetch')
 const inquirer = require('inquirer')
+const config = require('@adobe/aio-lib-core-config')
 const { stdout } = require('stdout-stderr')
 const { string } = require('@oclif/command/lib/flags')
-
-jest.mock('inquirer')
-
-
 
 
 
@@ -43,12 +40,14 @@ describe('hook interfaces', () => {
           expect.objectContaining({ body: expect.stringContaining('\"_adobeio\":{\"eventType\":\"command-not-found\"')}))
     })
 
-    // test('init', async () => {
-    //     const hook = require('../src/hooks/init')
-    //     expect(typeof hook).toBe('function')
-    //     let res = await hook({config:{ name: 'name', version: '0.0.1'}})
-    //     expect(fetch).not.toHaveBeenCalled()
-    // })
+    test('init', async () => {
+        const hook = require('../src/hooks/init')
+        expect(typeof hook).toBe('function')
+        inquirer.prompt = jest.fn().mockResolvedValue({ accept:false })
+        let res = await hook({config:{ name: 'name', version: '0.0.1'}, argv:['--no-telemetry']})
+        expect(fetch).toHaveBeenCalledWith(expect.any(String),
+          expect.objectContaining({ body: expect.stringContaining('\"_adobeio\":{\"eventType\":\"telemetry-prompt\",\"eventData\":\"declined\"')}))
+    })
 
     test('postrun', async () => {
         const hook = require('../src/hooks/postrun')

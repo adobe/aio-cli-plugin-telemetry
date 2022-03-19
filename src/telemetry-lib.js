@@ -9,8 +9,10 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const Insight = require('insight')
 const fetch = require('node-fetch')
+const config = require('@adobe/aio-lib-core-config')
+const osName = require('os-name')
+const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
 const postUrl = 'https://dcs.adobedc.net/collection/ffb5bdcefe744485c5c968662012f91293eee10f5dac4ca009beb14d7c028424?asynchronous=true'
@@ -32,12 +34,13 @@ Messages.TelemetryOnMessage = `
 Telemetry is on! Nice, you are helping us improve ${productName}
 If you would like to turn telemetry off, simply run \`aio telemetry off\``
 
-// Google Analytics tracking code has been replace, not using ga but still using insight
-let pkgJson = require('../package.json')
-let insight = new Insight({
-  trackingCode: 'unused',
-  pkg: pkgJson,
-})
+
+const osNameVersion = osName()
+let clientId = config.get('aio-cli-telemetry.clientId')
+if (!clientId) {
+  clientId = Math.floor(Date.now() * Math.random())
+  config.set('aio-cli-telemetry.clientId', clientId)
+}
 
 // this is set by the init hook, ex. @adobe/aio-cli@8.2.0
 let rootCliVersion = "?"
@@ -46,8 +49,6 @@ let prerunEvent
 /**
  * @description tracks the event
  * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
- * @param {string} command what command was being run
- * @param {Array<string>} flags on the command line
  * @param {string} eventData additional data, like the error message, or custom telemetry payload
  * @returns null
  */
@@ -59,7 +60,7 @@ async function trackEvent (eventType, eventData) {
   if (!prerunEvent) {
     prerunEvent = { command: '', flags: [], start: Date.now() }
   }
-  if (insight.optOut || isDisabledForCommand) {
+  if (isDisabledForCommand || config.get('aio-cli-telemetry.optOut','global') === true ) {
     debug('Telemetry is off. Not logging telemetry event', eventType)
     return
   } else {
@@ -81,21 +82,21 @@ async function trackEvent (eventType, eventData) {
         'eventType': eventType,
         'eventData': eventData,
         'cliVersion': rootCliVersion,
-        'clientId': insight.clientId,
+        'clientId': clientId,
         'command': prerunEvent.command,
         'commandDuration': duration,
         'commandFlags': prerunEvent.flags,
         'commandSuccess': eventType !== 'command-error',
         'nodeVersion': process.version,
-        'osNameVersion': insight.os
+        'osNameVersion': osNameVersion
       }
     })
-    console.log('posting telemetry event:', fetchConfig)
+    debug('posting telemetry event', fetchConfig.body)
     try {
       const response = await fetch(postUrl, fetchConfig)
-      console.log('response.ok = ', eventType, response.ok)
+      debug('response.ok = ', response.ok)
     } catch (exc) {
-      console.log('error reaching telemetry server')
+      debug('error reaching telemetry server : ', exc)
     }
   }
 }
@@ -111,44 +112,43 @@ module.exports = {
     global.commandHookStartTime = Date.now()
   },
   enable: () => {
-    insight.optOut = false
+    config.set('aio-cli-telemetry.optOut', false)
   },
   disable: () => {
-    insight.optOut = true
+    config.set('aio-cli-telemetry.optOut', true)
   },
   isEnabled: () => {
-    return insight.optOut === false && !isDisabledForCommand
+    return !isDisabledForCommand && config.get('aio-cli-telemetry.optOut','global') === false
   },
   disableForCommand: () => {
     isDisabledForCommand = true
   },
   isNull: () => {
-    return insight.optOut === undefined
+    return config.get('aio-cli-telemetry.optOut','global') === undefined
   },
   trackEvent,
   trackPrerun,
   // secret api for testing
   reset: () => {
-    insight.optOut = undefined
+    config.delete('aio-cli-telemetry.optOut')
   },
-  prompt: resolve => {
+  prompt: async () => {
     console.log(Messages.PromptPreamble)
-    insight.askPermission(Messages.PromptMessage, function (_, optIn) {
-      if (optIn) {
-        // user has accepted, we will thank them and track this
-        insight.optOut = false
-        trackEvent('telemetry-prompt', 'accepted')
-        console.log(Messages.TelemetryOnMessage)
-      }
-      else {
-        // user has declined, we still want to track this
-        insight.optOut = false
-        trackEvent('telemetry-prompt','declined')
-        insight.optOut = true
-        console.log(Messages.TelemetryOffMessage)
-      }
-      resolve()
-    })
+    const response = await inquirer.prompt([{
+      name: 'accept',
+      type: 'confirm',
+      message: Messages.PromptMessage
+    }])
+    if (response.accept) {
+      config.set('aio-cli-telemetry.optOut', false)
+      console.log(Messages.TelemetryOnMessage)
+      trackEvent('telemetry-prompt', 'accepted')
+    } else {
+      config.set('aio-cli-telemetry.optOut', false)
+      console.log(Messages.TelemetryOffMessage)
+      trackEvent('telemetry-prompt','declined')
+      config.set('aio-cli-telemetry.optOut', true)
+    }
   }
 }
 
