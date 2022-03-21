@@ -26,7 +26,7 @@ beforeEach(() => {
 })
 
 test('exports a run function', async () => {
-    expect(typeof TheCommand.run).toEqual('function')
+  expect(typeof TheCommand.run).toEqual('function')
 })
 
 describe('telemetry command', () => {
@@ -71,5 +71,4 @@ describe('telemetry command', () => {
     await command.run()
     expect(stdout.output).toMatch('resetting telemetry')
   })
-
 })
