@@ -10,7 +10,6 @@ governing permissions and limitations under the License.
 */
 
 const telemetryLib = require('../telemetry-lib')
-const debug = require('debug')('aio-telemetry:telemetry')
 
 /**
  * todo:

@@ -11,7 +11,6 @@
  */
 
 const fetch = require('node-fetch')
-const inquirer = require('inquirer')
 const TheCommand = require('../src/commands/telemetry')
 const { stdout } = require('stdout-stderr')
 

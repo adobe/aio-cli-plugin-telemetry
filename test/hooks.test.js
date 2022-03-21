@@ -13,64 +13,108 @@
 const fetch = require('node-fetch')
 const inquirer = require('inquirer')
 const config = require('@adobe/aio-lib-core-config')
-const { stdout } = require('stdout-stderr')
-const { string } = require('@oclif/command/lib/flags')
 
-
+jest.mock('inquirer')
+jest.mock('@adobe/aio-lib-core-config')
 
 describe('hook interfaces', () => {
+  beforeEach(() => {
+    fetch.mockReset()
+  })
 
-    beforeEach(() => {
-        fetch.mockReset()
-    })
+  test('command-error', async () => {
+    const hook = require('../src/hooks/command-error')
+    expect(typeof hook).toBe('function')
+    await hook({ message: 'msg' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"command-error"') }))
+  })
 
-    test('command-error', async () => {
-        const hook = require('../src/hooks/command-error')
-        expect(typeof hook).toBe('function')
-        let res = await hook({message:'msg'})
-        expect(fetch).toHaveBeenCalledWith(expect.any(String),
-          expect.objectContaining({ body: expect.stringContaining('\"_adobeio\":{\"eventType\":\"command-error\"')}))
-    })
+  test('command-not-found', async () => {
+    const hook = require('../src/hooks/command-not-found')
+    expect(typeof hook).toBe('function')
+    await hook({ id: 'id' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"command-not-found"') }))
+  })
 
-    test('command-not-found', async () => {
-        const hook = require('../src/hooks/command-not-found')
-        expect(typeof hook).toBe('function')
-        let res = await hook({id:'id'})
-        expect(fetch).toHaveBeenCalledWith(expect.any(String),
-          expect.objectContaining({ body: expect.stringContaining('\"_adobeio\":{\"eventType\":\"command-not-found\"')}))
-    })
+  /**
+   * Should prompt when config.get(optOut) returns undefined
+   * post results
+   */
+  test('init prompt accept:true', async () => {
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ config: { name: 'name', version: '0.0.1' }, argv: [] })
+    expect(inquirer.prompt).toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"accepted"') }))
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 
-    test('init', async () => {
-        const hook = require('../src/hooks/init')
-        expect(typeof hook).toBe('function')
-        inquirer.prompt = jest.fn().mockResolvedValue({ accept:false })
-        let res = await hook({config:{ name: 'name', version: '0.0.1'}, argv:['--no-telemetry']})
-        expect(fetch).toHaveBeenCalledWith(expect.any(String),
-          expect.objectContaining({ body: expect.stringContaining('\"_adobeio\":{\"eventType\":\"telemetry-prompt\",\"eventData\":\"declined\"')}))
-    })
+  /**
+   * Should prompt when config.get(optOut) returns undefined
+   * should still post after prompt even though it is declined, this is the last post
+   */
+  test('init prompt accept:false', async () => {
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: false })
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ config: { name: 'name', version: '0.0.1' }, argv: ['--verbose'] })
+    expect(inquirer.prompt).toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"declined"') }))
+  })
 
-    test('postrun', async () => {
-        const hook = require('../src/hooks/postrun')
-        expect(typeof hook).toBe('function')
-        let res = await hook({Command:{id:'id'}, argv:['--hello']})
-        expect(fetch).toHaveBeenCalledWith(expect.any(String),
-          expect.objectContaining({ body: expect.stringContaining('\"_adobeio\":{\"eventType\":\"postrun\"')}))
-    })
+  test('telemetry', async () => {
+    const hook = require('../src/hooks/telemetry')
+    expect(typeof hook).toBe('function')
+    config.get = jest
+      .fn()
+      .mockReturnValueOnce('clientid')
+      .mockReturnValueOnce(false)
 
-    test('prerun', async () => {
-        const hook = require('../src/hooks/prerun')
-        expect(typeof hook).toBe('function')
-        let res = await hook({Command:{id:'id'}, argv:['--hello']})
-        expect(fetch).not.toHaveBeenCalled()
-        res = await hook({Command:{id:'id'}, argv:['--hello', '--no-telemetry']})
-        expect(fetch).not.toHaveBeenCalled()
-    }) 
+    await hook({ message: 'msg' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-custom-event"') }))
+  })
 
-    test('telemetry', async () => {
-        const hook = require('../src/hooks/telemetry')
-        expect(typeof hook).toBe('function')
-        let res = await hook({message:'msg'})
-        expect(fetch).toHaveBeenCalledWith(expect.any(String),
-          expect.objectContaining({ body: expect.stringContaining('\"_adobeio\":{\"eventType\":\"telemetry\"')}))
-    })
+  test('postrun', async () => {
+    const hook = require('../src/hooks/postrun')
+    expect(typeof hook).toBe('function')
+    await hook({ Command: { id: 'id' }, argv: ['--hello'] })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"postrun"') }))
+  })
+
+  /**
+   * Should NOT prompt even though config.get(optOut) returned undefined
+   * --no-telemetry flag wins
+   */
+  test('init --no-telemetry no prompt', async () => {
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn()
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ config: { name: 'name', version: '0.0.1' }, argv: ['--no-telemetry'] })
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  test('prerun', async () => {
+    const hook = require('../src/hooks/prerun')
+    expect(typeof hook).toBe('function')
+    await hook({ Command: { id: 'id' }, argv: ['--hello'] })
+    expect(fetch).not.toHaveBeenCalled()
+    await hook({ Command: { id: 'id' }, argv: ['--hello', '--no-telemetry'] })
+    expect(fetch).not.toHaveBeenCalled()
+  })
 })
