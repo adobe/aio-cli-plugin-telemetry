@@ -20,5 +20,5 @@ module.exports = async function (opts) {
   if ((opts.argv.indexOf('--no-telemetry') < 0) && telemetryLib.isNull()) {
     // let's ask!
     return telemetryLib.prompt()
-  } 
+  }
 }
