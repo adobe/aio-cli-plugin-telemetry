@@ -9,7 +9,9 @@
     "@oclif/command": "^1.5.13",
     "@oclif/config": "^1.12.12",
     "debug": "^4.1.1",
+    "inquirer": "^8.2.1",
     "node-fetch": "^2.6.7",
+    "os-name": "^4.0.1",
     "splunk-logging": "^0.11.1"
   },
   "devDependencies": {
@@ -82,9 +84,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 100,
-        "lines": 100,
-        "statements": 100
+        "branches": 90,
+        "functions": 100,
+        "lines": 90,
+        "statements": 90
       }
     },
     "testPathIgnorePatterns": [
@@ -103,7 +106,7 @@
     "prepack": "oclif-dev manifest && oclif-dev readme",
     "postpack": "rm -f oclif.manifest.json",
     "version": "oclif-dev readme && git add README.md",
-    "lint": "eslint src test e2e",
+    "lint": "eslint src test",
     "test": "jest --ci && npm run lint"
   }
 }
