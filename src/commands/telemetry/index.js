@@ -45,9 +45,13 @@ class IndexCommand extends Command {
 }
 
 IndexCommand.description = `Help us improve the Adobe I/O CLI
-
 Allow the Adobe I/O CLI to collect anonymous usage data
 `
+
+IndexCommand.usage = [
+  'telemetry yes',
+  'telemetry off',
+  'telemetry']
 
 IndexCommand.flags = {
   reset: flags.boolean({

@@ -18,32 +18,37 @@ Adobe I/O cli usage telemetry
 # Usage
 <!-- usage -->
 ```sh-session
-$ aio plugins add @adobe/aio-cli-plugin-telemetry
-
-$ aio telemetry        
-
-How you use Adobe I/O CLI provides us with important data that we can use to make
-our products better. Please read our privacy policy for more information on the
-data we collect. http://www.adobe.com/privacy.html
-? Would you like to allow Adobe I/O CLI to collect anonymous usage data? (Y/n) 
-
+$ npm install -g @adobe/aio-cli-plugin-telemetry
+$ aio COMMAND
+running command...
+$ aio (-v|--version|version)
+@adobe/aio-cli-plugin-telemetry/0.1.2-next.0 darwin-x64 node-v14.19.0
+$ aio --help [COMMAND]
+USAGE
+  $ aio COMMAND
 ...
 ```
 <!-- usagestop -->
 # Commands
 <!-- commands -->
-* [`aio telemetry on|off`](#aio-telemetry-state)
+* [`aio telemetry yes`](#aio-telemetry-yes)
 
-## `aio telemetry [STATE]`
+## `aio telemetry yes`
 
-Describe the command here
+Help us improve the Adobe I/O CLI
 
 ```
 USAGE
-  $ aio telemetry [STATE]
+  $ aio telemetry yes
+  $ aio telemetry off
+  $ aio telemetry
 
 ARGUMENTS
   STATE  (on|off|yes|no) set telemetry state
 
+DESCRIPTION
+  Allow the Adobe I/O CLI to collect anonymous usage data
 ```
+
+_See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v0.1.2-next.0/src/commands/telemetry/index.js)_
 <!-- commandsstop -->
