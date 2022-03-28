@@ -41,7 +41,7 @@ let rootCliVersion = '?'
 let prerunEvent
 
 /**
- *
+ * @returns {string} clientId fetch or generate clientId and return it
  */
 function getClientId () {
   let clientId = config.get('aio-cli-telemetry.clientId')
@@ -56,7 +56,7 @@ function getClientId () {
  * @description tracks the event
  * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
  * @param {string} eventData additional data, like the error message, or custom telemetry payload
- * @returns null
+ * @returns {undefined}
  */
 async function trackEvent (eventType, eventData) {
   // prerunEvent will be null when telemetry-prompt event fires, this happens before
@@ -107,9 +107,9 @@ async function trackEvent (eventType, eventData) {
 }
 
 /**
- * @param command
- * @param flags
- * @param start
+ * @param {string} command which cli command was run
+ * @param {Array} flags what flags were specified
+ * @param {number} start when was the command started
  */
 function trackPrerun (command, flags, start) {
   prerunEvent = { command, flags, start }
@@ -117,6 +117,7 @@ function trackPrerun (command, flags, start) {
 
 module.exports = {
   Messages,
+  getClientId,
   setCliVersion: (versionString) => {
     rootCliVersion = versionString
     global.commandHookStartTime = Date.now()

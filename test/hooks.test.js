@@ -117,4 +117,13 @@ describe('hook interfaces', () => {
     await hook({ Command: { id: 'id' }, argv: ['--hello', '--no-telemetry'] })
     expect(fetch).not.toHaveBeenCalled()
   })
+
+  test('prerun disables telemetry for postrun', async () => {
+    const preHook = require('../src/hooks/prerun')
+    const postHook = require('../src/hooks/postrun')
+    config.get.mockResolvedValue('clientidxyz')
+    await preHook({ Command: { id: 'id' }, argv: ['--hello', '--no-telemetry'] })
+    await postHook({ Command: { id: 'id' }, argv: ['--hello', '--no-telemetry'] })
+    expect(fetch).not.toHaveBeenCalled()
+  })
 })
