@@ -10,12 +10,11 @@ governing permissions and limitations under the License.
 */
 
 const telemetryLib = require('../telemetry-lib')
-const debug = require('debug')('aio-telemetry:telemetry')
 
 /**
  * todo:
  * telemetry event is an optional event, so it can come from any other command by firing a hook
- * the things we want to track with this will vary so this needs to be refactored to include 
+ * the things we want to track with this will vary so this needs to be refactored to include
  * {other} data than the normal events we track
  * things tracked here could be things like:
  *  - user created app from template
@@ -27,6 +26,6 @@ const debug = require('debug')('aio-telemetry:telemetry')
  * just be ignored
  */
 
-module.exports = async function ({data}) {
+module.exports = async function ({ data }) {
   await telemetryLib.trackEvent('telemetry-custom-event', data)
 }

@@ -11,7 +11,6 @@
  */
 
 const fetch = require('node-fetch')
-const inquirer = require('inquirer')
 const TheCommand = require('../src/commands/telemetry')
 const { stdout } = require('stdout-stderr')
 
@@ -26,7 +25,7 @@ beforeEach(() => {
 })
 
 test('exports a run function', async () => {
-    expect(typeof TheCommand.run).toEqual('function')
+  expect(typeof TheCommand.run).toEqual('function')
 })
 
 describe('telemetry command', () => {
@@ -71,5 +70,4 @@ describe('telemetry command', () => {
     await command.run()
     expect(stdout.output).toMatch('resetting telemetry')
   })
-
 })
