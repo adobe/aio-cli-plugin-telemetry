@@ -56,6 +56,16 @@ describe('hook interfaces', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  test('init prompt - dont run in CI', async () => {
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ id: 'readme', config: { name: 'name', version: '0.0.1' }, argv: [] })
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   /**
    * Should prompt when config.get(optOut) returns undefined
    * should still post after prompt even though it is declined, this is the last post

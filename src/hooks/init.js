@@ -20,7 +20,7 @@ module.exports = async function (opts) {
   if ((opts.argv.indexOf('--no-telemetry') < 0) && telemetryLib.isNull()) {
     // let's ask!
     // unfortunately the `oclif-dev readme` run by prepack fires this event, which hangs CI
-    if(opts.id !== 'readme') {
+    if (opts.id !== 'readme') {
       return telemetryLib.prompt()
     }
   }
