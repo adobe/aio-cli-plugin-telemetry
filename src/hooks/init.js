@@ -19,6 +19,9 @@ module.exports = async function (opts) {
   // todo: don't prompt if it is a telemetry command, like `aio telemetry off` should not ask if you want to turn it on first ...
   if ((opts.argv.indexOf('--no-telemetry') < 0) && telemetryLib.isNull()) {
     // let's ask!
-    return telemetryLib.prompt()
+    // unfortunately the `oclif-dev readme` run by prepack fires this event, which hangs CI
+    if(opts.id !== 'readme') {
+      return telemetryLib.prompt()
+    }
   }
 }
