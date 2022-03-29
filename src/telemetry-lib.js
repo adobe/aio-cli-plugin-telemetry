@@ -18,7 +18,7 @@ const debug = require('debug')('aio-telemetry:telemetry-lib')
 const postUrl = 'https://dcs.adobedc.net/collection/ffb5bdcefe744485c5c968662012f91293eee10f5dac4ca009beb14d7c028424?asynchronous=true'
 let isDisabledForCommand = false
 
-const productName = 'Adobe I/O CLI'
+const productName = 'Adobe Developer CLI'
 const Messages = {}
 Messages.PromptPreamble = `
 How you use ${productName} provides us with important data that we can use to make

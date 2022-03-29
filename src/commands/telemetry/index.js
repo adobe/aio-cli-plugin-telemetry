@@ -44,8 +44,8 @@ class IndexCommand extends Command {
   }
 }
 
-IndexCommand.description = `Help us improve the Adobe I/O CLI
-Allow the Adobe I/O CLI to collect anonymous usage data
+IndexCommand.description = `Help us improve the Adobe Developer CLI
+Allow the Adobe Developer CLI to collect anonymous usage data
 `
 
 IndexCommand.usage = [

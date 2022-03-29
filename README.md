@@ -1,7 +1,7 @@
 aio-cli-plugin-telemetry
 ========================
 
-Adobe I/O cli usage telemetry
+Adobe Developer cli usage telemetry
 
 [![License](https://img.shields.io/npm/l/@adobe/aio-cli-plugin-telemetry.svg)](https://github.com/adobe/aio-cli-plugin-telemetry/blob/master/package.json)
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
@@ -35,7 +35,7 @@ USAGE
 
 ## `aio telemetry yes`
 
-Help us improve the Adobe I/O CLI
+Help us improve the Adobe Developer CLI
 
 ```
 USAGE
@@ -47,7 +47,7 @@ ARGUMENTS
   STATE  (on|off|yes|no) set telemetry state
 
 DESCRIPTION
-  Allow the Adobe I/O CLI to collect anonymous usage data
+  Allow the Adobe Developer CLI to collect anonymous usage data
 ```
 
 _See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v0.2.1/src/commands/telemetry/index.js)_

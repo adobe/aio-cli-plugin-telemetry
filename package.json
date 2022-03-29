@@ -1,6 +1,6 @@
 {
   "name": "@adobe/aio-cli-plugin-telemetry",
-  "description": "Adobe I/O cli telemetry",
+  "description": "Adobe Developer cli telemetry",
   "version": "0.2.1",
   "author": "Adobe Inc.",
   "bugs": "https://github.com/adobe/aio-cli-plugin-telemetry/issues",
