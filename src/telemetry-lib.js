@@ -156,6 +156,7 @@ module.exports = {
       trackEvent('telemetry-prompt', 'accepted')
     } else {
       // we will set optOut to true after tracking this one event
+      // todo: check if tty error
       config.set('aio-cli-telemetry.optOut', false)
       console.log(Messages.TelemetryOffMessage)
       trackEvent('telemetry-prompt', 'declined')
