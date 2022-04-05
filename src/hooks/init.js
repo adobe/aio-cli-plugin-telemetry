@@ -12,8 +12,18 @@ governing permissions and limitations under the License.
 const telemetryLib = require('../telemetry-lib')
 
 module.exports = async function (opts) {
+  // console.log('init happened '+ opts.config.name + '@' + opts.config.version + '\n' + Object.keys(opts))
   telemetryLib.setCliVersion(opts.config.name + '@' + opts.config.version)
-  global.commandHookStartTime = Date.now()
+
+  // set them both, init is always called, but prerun is not
+  global.prerunTimer = global.commandHookStartTime = Date.now()
+
+  // in some cases, the actual prerun hook does not happen, so we will track prerun here also
+  // even though it might be overwritten
+  telemetryLib.trackPrerun(opts.id,
+    opts.argv.filter(arg => arg.indexOf('-') === 0).join(','),
+    global.prerunTimer)
+
   // init event does not post telemetry, it stores some info that will be used later
   // this will prompt to optIn/Out if telemetry.optIn is undefined
   // todo: don't prompt if it is a telemetry command, like `aio telemetry off` should not ask if you want to turn it on first ...

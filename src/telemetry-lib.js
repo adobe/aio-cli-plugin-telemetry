@@ -38,7 +38,14 @@ const osNameVersion = osName()
 
 // this is set by the init hook, ex. @adobe/aio-cli@8.2.0
 let rootCliVersion = '?'
-let prerunEvent
+let prerunEvent = {}
+
+const FETCH_HEADERS = {
+  'Content-Type': 'application/json',
+  'x-adobe-flow-id': '6990c252-370b-45d7-99f5-9fc0e5edc0d9',
+  'x-api-key': 'adobe_io',
+  'sandbox-name': 'developer-lifecycle-dev1'
+}
 
 /**
  * @returns {string} clientId fetch or generate clientId and return it
@@ -58,46 +65,37 @@ function getClientId () {
  * @param {string} eventData additional data, like the error message, or custom telemetry payload
  * @returns {undefined}
  */
-async function trackEvent (eventType, eventData) {
+async function trackEvent (eventType, eventData = '') {
   // prerunEvent will be null when telemetry-prompt event fires, this happens before
   // any command is actually run, so we want to ignore the command+flags in this case
-  //
-  if (!prerunEvent) {
-    prerunEvent = { command: '', flags: [], start: Date.now() }
-  }
+
   if (isDisabledForCommand || config.get('aio-cli-telemetry.optOut', 'global') === true) {
     debug('Telemetry is off. Not logging telemetry event', eventType)
   } else {
     const clientId = getClientId()
     const timestamp = Date.now()
-    const duration = timestamp - prerunEvent.start
     const fetchConfig = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-adobe-flow-id': '6990c252-370b-45d7-99f5-9fc0e5edc0d9',
-        'x-api-key': 'adobe_io',
-        'sandbox-name': 'developer-lifecycle-dev1'
-      }
+      headers: FETCH_HEADERS,
+      body: JSON.stringify({
+        id: Math.floor(timestamp * Math.random()),
+        timestamp: timestamp,
+        _adobeio: {
+          eventType: eventType,
+          eventData: eventData,
+          cliVersion: rootCliVersion,
+          clientId: clientId,
+          command: prerunEvent.command,
+          commandDuration: timestamp - prerunEvent.start,
+          commandFlags: prerunEvent.flags,
+          commandSuccess: eventType !== 'command-error',
+          nodeVersion: process.version,
+          osNameVersion: osNameVersion
+        }
+      })
     }
-    fetchConfig.body = JSON.stringify({
-      id: Math.floor(timestamp * Math.random()),
-      timestamp: timestamp,
-      _adobeio: {
-        eventType: eventType,
-        eventData: eventData,
-        cliVersion: rootCliVersion,
-        clientId: clientId,
-        command: prerunEvent.command,
-        commandDuration: duration,
-        commandFlags: prerunEvent.flags,
-        commandSuccess: eventType !== 'command-error',
-        nodeVersion: process.version,
-        osNameVersion: osNameVersion
-      }
-    })
-    debug('posting telemetry event', fetchConfig.body)
     try {
+      debug('posting telemetry event', fetchConfig.body)
       const response = await fetch(postUrl, fetchConfig)
       debug('response.ok = ', response.ok)
     } catch (exc) {

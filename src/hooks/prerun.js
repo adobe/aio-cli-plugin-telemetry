@@ -16,6 +16,7 @@ module.exports = async function (opts) {
   // we keep globals because we could do some user facing telemetry to tell them how long a command ran
   // even if we don't post this to the telemetry server
   global.prerunTimer = Date.now()
+  debug('prerun')
   if (opts.argv.indexOf('--no-telemetry') > -1) {
     debug('--no-telemetry flag found. This command will not be tracked.')
     // remove our flag
