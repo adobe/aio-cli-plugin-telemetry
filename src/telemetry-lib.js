@@ -40,9 +40,10 @@ const osNameVersion = osName()
 let rootCliVersion = '?'
 let prerunEvent = {}
 
+// '6990c252-370b-45d7-99f5-9fc0e5edc0d9',
 const FETCH_HEADERS = {
   'Content-Type': 'application/json',
-  'x-adobe-flow-id': '6990c252-370b-45d7-99f5-9fc0e5edc0d9',
+  'x-adobe-flow-id': '18dce8db-f523-4ff1-8806-0719de3fd367',
   'x-api-key': 'adobe_io',
   'sandbox-name': 'developer-lifecycle-dev1'
 }
@@ -87,7 +88,7 @@ async function trackEvent (eventType, eventData = '') {
           clientId: clientId,
           command: prerunEvent.command,
           commandDuration: timestamp - prerunEvent.start,
-          commandFlags: prerunEvent.flags,
+          commandFlags: prerunEvent.flags.toString(),
           commandSuccess: eventType !== 'command-error',
           nodeVersion: process.version,
           osNameVersion: osNameVersion

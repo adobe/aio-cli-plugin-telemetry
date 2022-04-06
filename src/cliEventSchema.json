@@ -2,6 +2,8 @@
   "id": "eventId",
   "timestamp": "{{nowEpoc}}",
   "_adobeio": {
+    "eventType": "eventType",
+    "eventData": "{{eventData}}",
     "cliVersion": "cliVersion",
     "clientId": "clientId",
     "command": "command",
@@ -12,4 +14,3 @@
     "osNameVersion": "osNameVersion"
   }
 }
-
