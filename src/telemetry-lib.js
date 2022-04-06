@@ -38,7 +38,7 @@ const osNameVersion = osName()
 
 // this is set by the init hook, ex. @adobe/aio-cli@8.2.0
 let rootCliVersion = '?'
-let prerunEvent = {}
+let prerunEvent = { flags: [] }
 
 // '6990c252-370b-45d7-99f5-9fc0e5edc0d9',
 const FETCH_HEADERS = {
