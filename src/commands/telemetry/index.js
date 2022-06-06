@@ -9,12 +9,12 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { Command, flags } = require('@oclif/command')
+const { Command, Flags } = require('@oclif/core')
 const telemetryLib = require('../../telemetry-lib')
 
 class IndexCommand extends Command {
   async run () {
-    const { args, flags } = this.parse(IndexCommand)
+    const { args, flags } = await this.parse(IndexCommand)
     if (flags.reset) {
       telemetryLib.reset()
       this.log('resetting telemetry')
@@ -54,7 +54,7 @@ IndexCommand.usage = [
   'telemetry']
 
 IndexCommand.flags = {
-  reset: flags.boolean({
+  reset: Flags.boolean({
     hidden: true
   })
 }
