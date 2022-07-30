@@ -59,7 +59,7 @@ describe('hook interfaces', () => {
     process.env = preEnv
   })
 
-  test('init prompt - dont run in CI', async () => {
+  test('init prompt - dont run when oclif is generating readme', async () => {
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
@@ -67,6 +67,19 @@ describe('hook interfaces', () => {
     await hook({ id: 'readme', config: { name: 'name', version: '0.0.1' }, argv: [] })
     expect(inquirer.prompt).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  test('init prompt - dont run when oclif is generating readme and CI is off', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: undefined }
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ id: 'readme', config: { name: 'name', version: '0.0.1' }, argv: [] })
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+    process.env = preEnv
   })
 
   test('no prompt when process.env.CI', async () => {
