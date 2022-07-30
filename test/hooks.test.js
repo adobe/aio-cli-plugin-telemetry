@@ -45,6 +45,8 @@ describe('hook interfaces', () => {
    * post results
    */
   test('init prompt accept:true', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: undefined }
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
@@ -54,9 +56,10 @@ describe('hook interfaces', () => {
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"accepted"') }))
     expect(fetch).toHaveBeenCalledTimes(1)
+    process.env = preEnv
   })
 
-  test('init prompt - dont run in CI', async () => {
+  test('init prompt - dont run when oclif is generating readme', async () => {
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
@@ -66,11 +69,40 @@ describe('hook interfaces', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  test('init prompt - dont run when oclif is generating readme and CI is off', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: undefined }
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ id: 'readme', config: { name: 'name', version: '0.0.1' }, argv: [] })
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+    process.env = preEnv
+  })
+
+  test('no prompt when process.env.CI', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: 'true' }
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: false })
+    config.get = jest.fn().mockReturnValue(undefined)
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    await hook({ config: { name: 'name', version: '0.0.1' }, argv: ['--verbose'] })
+    expect(fetch).not.toHaveBeenCalled()
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    process.env = preEnv
+  })
+
   /**
    * Should prompt when config.get(optOut) returns undefined
    * should still post after prompt even though it is declined, this is the last post
    */
   test('init prompt accept:false', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: undefined }
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: false })
@@ -80,6 +112,7 @@ describe('hook interfaces', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"declined"') }))
+    process.env = preEnv
   })
 
   test('telemetry', async () => {
