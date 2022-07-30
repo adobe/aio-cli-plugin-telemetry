@@ -45,6 +45,8 @@ describe('hook interfaces', () => {
    * post results
    */
   test('init prompt accept:true', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: undefined }
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
@@ -54,6 +56,7 @@ describe('hook interfaces', () => {
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"accepted"') }))
     expect(fetch).toHaveBeenCalledTimes(1)
+    process.env = preEnv
   })
 
   test('init prompt - dont run in CI', async () => {
@@ -85,6 +88,8 @@ describe('hook interfaces', () => {
    * should still post after prompt even though it is declined, this is the last post
    */
   test('init prompt accept:false', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: undefined }
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: false })
@@ -94,6 +99,7 @@ describe('hook interfaces', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"declined"') }))
+    process.env = preEnv
   })
 
   test('telemetry', async () => {
