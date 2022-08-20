@@ -22,7 +22,7 @@ $ npm install -g @adobe/aio-cli-plugin-telemetry
 $ aio COMMAND
 running command...
 $ aio (--version)
-@adobe/aio-cli-plugin-telemetry/1.0.0 darwin-x64 node-v16.16.0
+@adobe/aio-cli-plugin-telemetry/1.0.1 darwin-arm64 node-v16.16.0
 $ aio --help [COMMAND]
 USAGE
   $ aio COMMAND
@@ -52,5 +52,5 @@ DESCRIPTION
   Allow the Adobe Developer CLI to collect anonymous usage data
 ```
 
-_See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v1.0.0/src/commands/telemetry/index.js)_
+_See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v1.0.1/src/commands/telemetry/index.js)_
 <!-- commandsstop -->
