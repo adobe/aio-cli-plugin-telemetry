@@ -52,7 +52,7 @@
   "oclif": {
     "commands": "./src/commands",
     "bin": "aio",
-    "topicSeparator": ":",
+    "topicSeparator": " ",
     "devPlugins": [
       "@oclif/plugin-help"
     ],
