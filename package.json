@@ -30,7 +30,7 @@
     "jest-fetch-mock": "^3.0.0",
     "jest-junit": "^13.0.0",
     "jest-plugin-fs": "^2.9.0",
-    "oclif": "^3.0.1",
+    "oclif": "^3.2.0",
     "stdout-stderr": "^0.1.9"
   },
   "engines": {
@@ -52,7 +52,7 @@
   "oclif": {
     "commands": "./src/commands",
     "bin": "aio",
-    "topicSeparator": ":",
+    "topicSeparator": " ",
     "devPlugins": [
       "@oclif/plugin-help"
     ],
@@ -103,7 +103,7 @@
     ]
   },
   "scripts": {
-    "prepack": "oclif manifest && oclif readme",
+    "prepack": "oclif manifest && oclif readme --no-aliases",
     "postpack": "rm -f oclif.manifest.json",
     "version": "oclif readme && git add README.md",
     "lint": "eslint src test",

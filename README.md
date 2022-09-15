@@ -11,24 +11,7 @@ Adobe Developer cli usage telemetry
 [![Github Issues](https://img.shields.io/github/issues/adobe/aio-cli-plugin-telemetry.svg)](https://github.com/adobe/aio-cli-plugin-telemetry/issues)
 [![Github Pull Requests](https://img.shields.io/github/issues-pr/adobe/aio-cli-plugin-telemetry.svg)](https://github.com/adobe/aio-cli-plugin-telemetry/pulls) 
 
-<!-- toc -->
-* [Usage](#usage)
-* [Commands](#commands)
-<!-- tocstop -->
-# Usage
-<!-- usage -->
-```sh-session
-$ npm install -g @adobe/aio-cli-plugin-telemetry
-$ aio COMMAND
-running command...
-$ aio (--version)
-@adobe/aio-cli-plugin-telemetry/1.0.1 darwin-arm64 node-v16.16.0
-$ aio --help [COMMAND]
-USAGE
-  $ aio COMMAND
-...
-```
-<!-- usagestop -->
+
 # Commands
 <!-- commands -->
 * [`aio telemetry yes`](#aio-telemetry-yes)
