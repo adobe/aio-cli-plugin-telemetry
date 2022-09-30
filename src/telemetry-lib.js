@@ -21,9 +21,11 @@ let isDisabledForCommand = false
 const productName = 'Adobe Developer CLI'
 const Messages = {}
 Messages.PromptPreamble = `
-How you use ${productName} provides us with important data that we can use to make
-our products better. Please read our privacy policy for more information on the
-data we collect. http://www.adobe.com/privacy.html`
+How you use ${productName} provides us with important data that we can use
+to make our products better. Please read our guide for more information on
+the data we anonymously collect, and how we use it.
+https://developer.adobe.com/app-builder/docs/guides/telemetry/
+`
 
 Messages.PromptMessage = `Would you like to allow ${productName} to collect anonymous usage data?`
 Messages.TelemetryOffMessage = `
