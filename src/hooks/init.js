@@ -9,9 +9,14 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
+const ciDetect = require('@npmcli/ci-detect')
 const telemetryLib = require('../telemetry-lib')
+const debug = require('debug')('aio-telemetry:init')
 
 module.exports = async function (opts) {
+  const inCI = ciDetect()
+
+  debug(`tracking init => ${opts.id} inCI=${inCI}`)
   // console.log('init happened '+ opts.config.name + '@' + opts.config.version + '\n' + Object.keys(opts))
   telemetryLib.setCliVersion(opts.config.name + '@' + opts.config.version)
 
@@ -26,13 +31,12 @@ module.exports = async function (opts) {
 
   // init event does not post telemetry, it stores some info that will be used later
   // this will prompt to optIn/Out if telemetry.optIn is undefined
-  // todo: don't prompt if it is a telemetry command, like `aio telemetry off` should not ask if you want to turn it on first ...
   if ((opts.argv.indexOf('--no-telemetry') < 0) &&
-    !process.env.CI &&
+    !inCI &&
     telemetryLib.isNull()) {
     // let's ask!
     // unfortunately the `oclif-dev readme` run by prepack fires this event, which hangs CI
-    if (opts.id !== 'readme') {
+    if (['readme', 'telemetry'].indexOf(opts.id) < 0) {
       return telemetryLib.prompt()
     }
   }
