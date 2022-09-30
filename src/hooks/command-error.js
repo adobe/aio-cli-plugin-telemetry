@@ -10,11 +10,13 @@ governing permissions and limitations under the License.
 */
 
 const telemetryLib = require('../telemetry-lib')
+const debug = require('debug')('aio-telemetry:error')
 
 /*
   we don't need to track anything other than the error itself, the command + flags were stored in prerun
   if there was a --no-telemetry flag then this call will be ignored by telemetryLib
 */
 module.exports = async function ({ message }) {
+  debug('tracking command-error =>', message)
   await telemetryLib.trackEvent('command-error', { message })
 }
