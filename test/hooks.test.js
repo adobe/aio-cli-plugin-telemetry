@@ -59,6 +59,29 @@ describe('hook interfaces', () => {
     process.env = preEnv
   })
 
+  test('init prompt - full coverage when run by gh actions', async () => {
+    const preEnv = process.env
+    process.env = { ...preEnv, CI: undefined, GITHUB_ACTION: undefined }
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ id: 'telemetry', config: { name: 'name', version: '0.0.1' }, argv: [] })
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+    process.env = preEnv
+  })
+
+  test('init prompt - dont ask for telemetry for telemetry commands', async () => {
+    const hook = require('../src/hooks/init')
+    expect(typeof hook).toBe('function')
+    inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
+    config.get = jest.fn().mockReturnValue(undefined)
+    await hook({ id: 'telemetry', config: { name: 'name', version: '0.0.1' }, argv: [] })
+    expect(inquirer.prompt).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   test('init prompt - dont run when oclif is generating readme', async () => {
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
