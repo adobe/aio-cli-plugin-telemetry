@@ -15,51 +15,40 @@ const osName = require('os-name')
 const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
-const postUrl = 'https://dcs.adobedc.net/collection/ffb5bdcefe744485c5c968662012f91293eee10f5dac4ca009beb14d7c028424?asynchronous=true'
 let isDisabledForCommand = false
-
-const productName = 'Adobe Developer CLI'
-const Messages = {}
-Messages.PromptPreamble = `
-How you use ${productName} provides us with important data that we can use
-to make our products better. Please read our guide for more information on
-the data we anonymously collect, and how we use it.
-https://developer.adobe.com/app-builder/docs/guides/telemetry/
-`
-
-Messages.PromptMessage = `Would you like to allow ${productName} to collect anonymous usage data?`
-Messages.TelemetryOffMessage = `
-Telemetry is off.
-If you would like to turn telemetry on, simply run \`aio telemetry on\``
-
-Messages.TelemetryOnMessage = `
-Telemetry is on! Nice, you are helping us improve ${productName}
-If you would like to turn telemetry off, simply run \`aio telemetry off\``
 
 const osNameVersion = osName()
 
 // this is set by the init hook, ex. @adobe/aio-cli@8.2.0
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
-
-// '6990c252-370b-45d7-99f5-9fc0e5edc0d9',
-const FETCH_HEADERS = {
+// postUrl and fetchHeaders are set by the init hook if these values are set in the root cli package.json
+let postUrl = 'https://dcs.adobedc.net/collection/ffb5bdcefe744485c5c968662012f91293eee10f5dac4ca009beb14d7c028424?asynchronous=true'
+let fetchHeaders = {
   'Content-Type': 'application/json',
   'x-adobe-flow-id': '18dce8db-f523-4ff1-8806-0719de3fd367',
   'x-api-key': 'adobe_io',
   'sandbox-name': 'developer-lifecycle-dev1'
 }
+let configKey = 'aio-cli-telemetry'
 
 /**
  * @returns {string} clientId fetch or generate clientId and return it
  */
 function getClientId () {
-  let clientId = config.get('aio-cli-telemetry.clientId')
+  let clientId = config.get(`${configKey}.clientId`)
   if (!clientId) {
     clientId = Math.floor(Date.now() * Math.random())
-    config.set('aio-cli-telemetry.clientId', clientId)
+    config.set(`${configKey}.clientId`, clientId)
   }
   return clientId
+}
+
+const getOnMessage = (productName, binName) => {
+  return `Telemetry is on! Nice, you are helping us improve ${productName} If you would like to turn telemetry off, simply run \`${binName} telemetry off\``
+}
+const getOffMessage = (binName) => {
+  return `\nTelemetry is off.\nIf you would like to turn telemetry on, simply run \`${binName} telemetry on\``
 }
 
 /**
@@ -72,14 +61,14 @@ async function trackEvent (eventType, eventData = '') {
   // prerunEvent will be null when telemetry-prompt event fires, this happens before
   // any command is actually run, so we want to ignore the command+flags in this case
 
-  if (isDisabledForCommand || config.get('aio-cli-telemetry.optOut', 'global') === true) {
+  if (isDisabledForCommand || config.get(`${configKey}.optOut`, 'global') === true) {
     debug('Telemetry is off. Not logging telemetry event', eventType)
   } else {
     const clientId = getClientId()
     const timestamp = Date.now()
     const fetchConfig = {
       method: 'POST',
-      headers: FETCH_HEADERS,
+      headers: fetchHeaders,
       body: JSON.stringify({
         id: Math.floor(timestamp * Math.random()),
         timestamp: timestamp,
@@ -98,7 +87,7 @@ async function trackEvent (eventType, eventData = '') {
       })
     }
     try {
-      debug('posting telemetry event', fetchConfig.body)
+      debug('posting telemetry event', fetchConfig)
       const response = await fetch(postUrl, fetchConfig)
       debug('response.ok = ', response.ok)
     } catch (exc) {
@@ -117,51 +106,65 @@ function trackPrerun (command, flags, start) {
 }
 
 module.exports = {
-  Messages,
-  getClientId,
-  setCliVersion: (versionString) => {
-    rootCliVersion = versionString
+  init: (versionString, binName, remoteConf = {}) => {
     global.commandHookStartTime = Date.now()
+    rootCliVersion = versionString
+    if (remoteConf.fetchHeaders) {
+      fetchHeaders = remoteConf.fetchHeaders
+    }
+    if (remoteConf.postUrl) {
+      postUrl = remoteConf.postUrl
+    }
+    configKey = binName + '-cli-telemetry'
   },
+  getClientId,
   enable: () => {
-    config.set('aio-cli-telemetry.optOut', false)
+    config.set(`${configKey}.optOut`, false)
   },
   disable: () => {
-    config.set('aio-cli-telemetry.optOut', true)
+    config.set(`${configKey}.optOut`, true)
   },
   isEnabled: () => {
-    return !isDisabledForCommand && config.get('aio-cli-telemetry.optOut', 'global') === false
+    return !isDisabledForCommand && config.get(`${configKey}.optOut`, 'global') === false
   },
   disableForCommand: () => {
     isDisabledForCommand = true
   },
   isNull: () => {
-    return config.get('aio-cli-telemetry.optOut', 'global') === undefined
+    return config.get(`${configKey}.optOut`, 'global') === undefined
   },
   trackEvent,
   trackPrerun,
   // secret api for testing
   reset: () => {
-    config.delete('aio-cli-telemetry')
+    config.delete(configKey)
   },
-  prompt: async () => {
-    console.log(Messages.PromptPreamble)
+  getOnMessage,
+  getOffMessage,
+  prompt: async (productName, binName) => {
+    console.log(`
+      How you use ${productName} provides us with important data that we can use
+      to make our products better. Please read our guide for more information on
+      the data we anonymously collect, and how we use it.
+      https://developer.adobe.com/app-builder/docs/guides/telemetry/
+    `)
+
     const response = await inquirer.prompt([{
       name: 'accept',
       type: 'confirm',
-      message: Messages.PromptMessage
+      message: `Would you like to allow ${productName} to collect anonymous usage data?`
     }])
     if (response.accept) {
-      config.set('aio-cli-telemetry.optOut', false)
-      console.log(Messages.TelemetryOnMessage)
+      config.set(`${configKey}.optOut`, false)
+      console.log(getOnMessage(productName, binName))
       trackEvent('telemetry-prompt', 'accepted')
     } else {
       // we will set optOut to true after tracking this one event
       // todo: check if tty error
-      config.set('aio-cli-telemetry.optOut', false)
-      console.log(Messages.TelemetryOffMessage)
+      config.set(`${configKey}.optOut`, false)
+      console.log(getOffMessage(binName))
       trackEvent('telemetry-prompt', 'declined')
-      config.set('aio-cli-telemetry.optOut', true)
+      config.set(`${configKey}.optOut`, true)
     }
   }
 }
