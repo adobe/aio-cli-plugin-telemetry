@@ -1,3 +1,4 @@
 {
-  "extends": "@adobe/eslint-config-aio-lib-config"
+  "extends": "@adobe/eslint-config-aio-lib-config",
+  "parserOptions": { "ecmaVersion": 2020}
 }
