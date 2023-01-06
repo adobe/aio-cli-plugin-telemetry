@@ -23,14 +23,29 @@ describe('telemetry-lib', () => {
   })
 
   test('exports messages', async () => {
-    expect(telemetryLib.Messages).toBeDefined()
+    expect(telemetryLib.getOffMessage).toBeDefined()
+    expect(telemetryLib.getOffMessage).toBeInstanceOf(Function)
+
+    expect(telemetryLib.getOnMessage).toBeDefined()
+    expect(telemetryLib.getOnMessage).toBeInstanceOf(Function)
+  })
+
+  test('exports init function', async () => {
+    expect(telemetryLib.init).toBeDefined()
+    expect(telemetryLib.init).toBeInstanceOf(Function)
+    telemetryLib.init('a@4', 'binTest')
+    telemetryLib.enable()
+    expect(config.set).toHaveBeenCalledWith('binTest-cli-telemetry.optOut', false)
+    telemetryLib.disable()
+    expect(config.set).toHaveBeenCalledWith('binTest-cli-telemetry.optOut', true)
   })
 
   test('uses client id from config', async () => {
     config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binTest2')
     await telemetryLib.trackEvent('test-event')
-    expect(config.get).toHaveBeenCalledWith('aio-cli-telemetry.clientId')
-    expect(config.get).toHaveBeenCalledWith('aio-cli-telemetry.optOut', 'global')
+    expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.clientId')
+    expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.optOut', 'global')
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"clientId":"clientidxyz"') }))
   })

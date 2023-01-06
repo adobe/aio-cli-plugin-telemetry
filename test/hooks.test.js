@@ -17,6 +17,15 @@ const config = require('@adobe/aio-lib-core-config')
 jest.mock('inquirer')
 jest.mock('@adobe/aio-lib-core-config')
 
+const mockPackageJson = {
+  bin: { aio: '' },
+  name: 'name',
+  aioTelemetry: {
+    fetchHeaders: { 'Content-Type': 'application/json' },
+    postUrl: 'https://httpstat.us/200'
+  }
+}
+
 describe('hook interfaces', () => {
   beforeEach(() => {
     fetch.mockReset()
@@ -51,7 +60,7 @@ describe('hook interfaces', () => {
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
     config.get = jest.fn().mockReturnValue(undefined)
-    await hook({ config: { name: 'name', version: '0.0.1' }, argv: [] })
+    await hook({ config: { name: 'name', version: '0.0.1', pjson: mockPackageJson }, argv: [] })
     expect(inquirer.prompt).toHaveBeenCalled()
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"accepted"') }))
