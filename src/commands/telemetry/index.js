@@ -50,9 +50,7 @@ class IndexCommand extends Command {
   }
 }
 
-IndexCommand.description = `Help us improve the Adobe Developer CLI
-Allow the Adobe Developer CLI to collect anonymous usage data
-`
+IndexCommand.description = `Allow the cli to collect anonymous usage data`
 
 IndexCommand.usage = [
   'telemetry yes',
