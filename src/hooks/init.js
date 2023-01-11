@@ -24,8 +24,9 @@ module.exports = async function (opts) {
 
   debug(`tracking init => ${opts.id} inCI=${inCI}`)
   const productName = pjson.displayName || pjson.name
+  const cliNameVersion = opts.config.name + '@' + opts.config.version
   // set the cli version
-  telemetryLib.init(productName, binName, pjson.aioTelemetry)
+  telemetryLib.init(cliNameVersion, binName, pjson.aioTelemetry)
 
   // set them both, init is always called, but prerun is not
   global.prerunTimer = global.commandHookStartTime = Date.now()

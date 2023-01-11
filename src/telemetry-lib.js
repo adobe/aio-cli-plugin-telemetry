@@ -45,7 +45,7 @@ function getClientId () {
 }
 
 const getOnMessage = (productName, binName) => {
-  return `Telemetry is on! Nice, you are helping us improve ${productName} If you would like to turn telemetry off, simply run \`${binName} telemetry off\``
+  return `Telemetry is on! Nice, you are helping us improve ${productName} \nIf you would like to turn telemetry off, simply run \`${binName} telemetry off\``
 }
 const getOffMessage = (binName) => {
   return `\nTelemetry is off.\nIf you would like to turn telemetry on, simply run \`${binName} telemetry on\``

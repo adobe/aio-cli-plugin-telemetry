@@ -17,7 +17,7 @@ class IndexCommand extends Command {
     // get the product name from the package.json with fallbacks
     const pjson = this.config?.pjson || { name: 'Adobe Developer CLI', bin: { aio: '' } }
     // product name is either the displayName or the name
-    const productName = pjson.displayName || pjson.name
+    const productName = pjson.displayName || this.config?.pjson?.name || pjson.name
     // we use the first bin name as the default
     const [binName] = Object.keys(pjson.bin)
     const { args, flags } = await this.parse(IndexCommand)
@@ -50,7 +50,7 @@ class IndexCommand extends Command {
   }
 }
 
-IndexCommand.description = `Allow the cli to collect anonymous usage data`
+IndexCommand.description = 'Allow the cli to collect anonymous usage data'
 
 IndexCommand.usage = [
   'telemetry yes',
