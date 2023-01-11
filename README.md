@@ -43,8 +43,29 @@ The following values need to be set when this plugin is hosted by different CLIs
 - `aioTelemetry`: defined object in root cli package.json with values:
   - `postUrl` : Where to post telemetry data
   - `postHeaders`: Any specific headers that need to be posted with telemetry data (ex. x-api-key)
+  - `productPrivacyPolicyLink`: A link to display to users when prompting to optIn
 - `productName`: How to refer to the cli when user is prompted to enable telemetry
   - this value is read from `displayName` or `name` of the cli's package.json
-- `productBin`: Output in help text (ex. To turn telemetry on run `{productBin} telemetry on`)
+- `productBin`: Output in help text
+  - ex. To turn telemetry on run `${productBin} telemetry on`
   - this value is read from 'bin' of the cli's package.json, if the package exports more than 1 bin the first is used
-- `productPrivacyPolicyLink`: A link to display to users when prompting to optIn 
+
+## POST data
+
+Here is an example of the event data as posted:
+```
+{ "id": 656915165813,
+  "timestamp": 1673404918437,
+  "_adobeio": {
+    "eventType": "telemetry-prompt",
+    "eventData": "accepted",
+    "cliVersion": "@adobe/aio-cli@9.1.1",
+    "clientId": 264421030538,
+    "commandDuration": 5661,
+    "commandFlags": "",
+    "commandSuccess": true,
+    "nodeVersion": "v14.20.0",
+    "osNameVersion": "macOS"
+  }
+}
+```
