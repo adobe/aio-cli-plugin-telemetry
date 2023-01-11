@@ -31,6 +31,7 @@ let fetchHeaders = {
   'sandbox-name': 'developer-lifecycle-dev1'
 }
 let configKey = 'aio-cli-telemetry'
+const defaultPrivacyPolicyLink = 'https://developer.adobe.com/app-builder/docs/guides/telemetry/'
 
 /**
  * @returns {string} clientId fetch or generate clientId and return it
@@ -141,12 +142,12 @@ module.exports = {
   },
   getOnMessage,
   getOffMessage,
-  prompt: async (productName, binName) => {
+  prompt: async (productName, binName, privacyPolicyLink) => {
     console.log(`
       How you use ${productName} provides us with important data that we can use
       to make our products better. Please read our guide for more information on
       the data we anonymously collect, and how we use it.
-      https://developer.adobe.com/app-builder/docs/guides/telemetry/
+      ${privacyPolicyLink || defaultPrivacyPolicyLink}
     `)
 
     const response = await inquirer.prompt([{

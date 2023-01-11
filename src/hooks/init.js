@@ -45,9 +45,9 @@ module.exports = async function (opts) {
     // let's ask!
     // unfortunately the `oclif-dev readme` run by prepack fires this event, which hangs CI
     // Also we don't prompt for telemetry if the first command is a telemetry command because they
-    // are probably setting it
+    // are probably setting it on or off already
     if (['readme', 'telemetry'].indexOf(opts.id) < 0) {
-      return telemetryLib.prompt(productName, binName)
+      return telemetryLib.prompt(productName, binName, opts?.config?.pjson?.aioTelemetry?.productPrivacyPolicyLink)
     }
   }
 }
