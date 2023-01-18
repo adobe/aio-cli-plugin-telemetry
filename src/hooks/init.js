@@ -15,10 +15,18 @@ const debug = require('debug')('aio-telemetry:init')
 
 module.exports = async function (opts) {
   const inCI = ciDetect()
+  const pjson = opts.config?.pjson || {
+    displayName: 'Adobe Developer CLI',
+    bin: { aio: '' },
+    aioTelemetry: {}
+  }
+  const [binName] = Object.keys(pjson.bin)
 
   debug(`tracking init => ${opts.id} inCI=${inCI}`)
-  // console.log('init happened '+ opts.config.name + '@' + opts.config.version + '\n' + Object.keys(opts))
-  telemetryLib.setCliVersion(opts.config.name + '@' + opts.config.version)
+  const productName = pjson.displayName || pjson.name
+  const cliNameVersion = opts.config.name + '@' + opts.config.version
+  // set the cli version
+  telemetryLib.init(cliNameVersion, binName, pjson.aioTelemetry)
 
   // set them both, init is always called, but prerun is not
   global.prerunTimer = global.commandHookStartTime = Date.now()
@@ -36,8 +44,10 @@ module.exports = async function (opts) {
     telemetryLib.isNull()) {
     // let's ask!
     // unfortunately the `oclif-dev readme` run by prepack fires this event, which hangs CI
+    // Also we don't prompt for telemetry if the first command is a telemetry command because they
+    // are probably setting it on or off already
     if (['readme', 'telemetry'].indexOf(opts.id) < 0) {
-      return telemetryLib.prompt()
+      return telemetryLib.prompt(productName, binName, opts?.config?.pjson?.aioTelemetry?.productPrivacyPolicyLink)
     }
   }
 }

@@ -14,6 +14,12 @@ const telemetryLib = require('../../telemetry-lib')
 
 class IndexCommand extends Command {
   async run () {
+    // get the product name from the package.json with fallbacks
+    const pjson = this.config?.pjson || { name: 'Adobe Developer CLI', bin: { aio: '' } }
+    // product name is either the displayName or the name
+    const productName = pjson.displayName || this.config?.pjson?.name || pjson.name
+    // we use the first bin name as the default
+    const [binName] = Object.keys(pjson.bin)
     const { args, flags } = await this.parse(IndexCommand)
     if (flags.reset) {
       telemetryLib.reset()
@@ -23,20 +29,20 @@ class IndexCommand extends Command {
         case 'on':
         case 'yes': { // fallthrough
           telemetryLib.enable()
-          this.log(telemetryLib.Messages.TelemetryOnMessage)
+          this.log(telemetryLib.getOnMessage(productName, binName))
           break
         }
         case 'off':
         case 'no': { // fallthrough
           telemetryLib.disable()
-          this.log(telemetryLib.Messages.TelemetryOffMessage)
+          this.log(telemetryLib.getOffMessage(binName))
           break
         }
         default:
           if (telemetryLib.isEnabled()) {
-            this.log(telemetryLib.Messages.TelemetryOnMessage)
+            this.log(telemetryLib.getOnMessage(productName, binName))
           } else {
-            this.log(telemetryLib.Messages.TelemetryOffMessage)
+            this.log(telemetryLib.getOffMessage(binName))
           }
           break
       }
@@ -44,9 +50,7 @@ class IndexCommand extends Command {
   }
 }
 
-IndexCommand.description = `Help us improve the Adobe Developer CLI
-Allow the Adobe Developer CLI to collect anonymous usage data
-`
+IndexCommand.description = 'Allow the cli to collect anonymous usage data'
 
 IndexCommand.usage = [
   'telemetry yes',
