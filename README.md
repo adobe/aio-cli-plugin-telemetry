@@ -18,7 +18,7 @@ Adobe Developer cli usage telemetry
 
 ## `aio telemetry yes`
 
-Help us improve the Adobe Developer CLI
+Allow the cli to collect anonymous usage data
 
 ```
 USAGE
@@ -30,12 +30,10 @@ ARGUMENTS
   STATE  (on|off|yes|no) set telemetry state
 
 DESCRIPTION
-  Help us improve the Adobe Developer CLI
-
-  Allow the Adobe Developer CLI to collect anonymous usage data
+  Allow the cli to collect anonymous usage data
 ```
 
-_See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v1.1.0/src/commands/telemetry/index.js)_
+_See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v1.2.0/src/commands/telemetry/index.js)_
 <!-- commandsstop -->
 
 ## Configuration
