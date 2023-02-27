@@ -15,6 +15,9 @@ const osName = require('os-name')
 const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
+const ADOBE_ANALYTICS = 'AdobeAnalytics'
+const DUNAMIS = 'Dunamis'
+
 let isDisabledForCommand = false
 
 const osNameVersion = osName()
@@ -32,6 +35,7 @@ let fetchHeaders = {
 }
 let configKey = 'aio-cli-telemetry'
 const defaultPrivacyPolicyLink = 'https://developer.adobe.com/app-builder/docs/guides/telemetry/'
+let ingestType = ADOBE_ANALYTICS
 
 /**
  * @returns {string} clientId fetch or generate clientId and return it
@@ -65,28 +69,8 @@ async function trackEvent (eventType, eventData = '') {
   if (isDisabledForCommand || config.get(`${configKey}.optOut`, 'global') === true) {
     debug('Telemetry is off. Not logging telemetry event', eventType)
   } else {
-    const clientId = getClientId()
-    const timestamp = Date.now()
-    const fetchConfig = {
-      method: 'POST',
-      headers: fetchHeaders,
-      body: JSON.stringify({
-        id: Math.floor(timestamp * Math.random()),
-        timestamp: timestamp,
-        _adobeio: {
-          eventType: eventType,
-          eventData: eventData,
-          cliVersion: rootCliVersion,
-          clientId: clientId,
-          command: prerunEvent.command,
-          commandDuration: timestamp - prerunEvent.start,
-          commandFlags: prerunEvent.flags.toString(),
-          commandSuccess: eventType !== 'command-error',
-          nodeVersion: process.version,
-          osNameVersion: osNameVersion
-        }
-      })
-    }
+
+    const fetchConfig = _createConfig(eventType, eventData)
     try {
       debug('posting telemetry event', fetchConfig)
       const response = await fetch(postUrl, fetchConfig)
@@ -106,6 +90,67 @@ function trackPrerun (command, flags, start) {
   prerunEvent = { command, flags, start }
 }
 
+function _createConfig(eventType, eventData) {
+  const clientId = getClientId()
+  let fetchConfig
+
+  if(ingestType === ADOBE_ANALYTICS) {
+  const timestamp = Date.now()
+   fetchConfig = {
+      method: 'POST',
+      headers: fetchHeaders,
+      body: JSON.stringify({
+        id: Math.floor(timestamp * Math.random()),
+        timestamp: timestamp,
+        _adobeio: {
+          eventType: eventType,
+          eventData: eventData,
+          cliVersion: rootCliVersion,
+          clientId: clientId,
+          command: prerunEvent.command,
+          commandDuration: timestamp - prerunEvent.start,
+          commandFlags: prerunEvent.flags.toString(),
+          commandSuccess: eventType !== 'command-error',
+          nodeVersion: process.version,
+          osNameVersion: osNameVersion
+        }
+      })
+    }
+
+  } else if(ingestType === DUNAMIS) {
+    const timeString = (new Date()).toISOString()
+    const obj = {
+      events: [{
+      project: 'playground-service',
+      environment: 'TEST', //TODO change this after POC to use actual env values
+      time: timeString,
+      ingesttype: 'dunamis',
+
+        data: {
+          eventType: eventType,
+          eventData: eventData,
+          cliVersion: rootCliVersion,
+          clientId: clientId,
+          command: prerunEvent.command,
+          commandDuration: timestamp - prerunEvent.start,
+          commandFlags: prerunEvent.flags.toString(),
+          commandSuccess: eventType !== 'command-error',
+          nodeVersion: process.version,
+          osNameVersion: osNameVersion
+        }
+      }]
+    }
+    fetchConfig = {
+       method: 'POST',
+       headers: fetchHeaders,
+       body: JSON.stringify(obj)
+     }
+  } else {
+    debug('unsupported ingestType for telemetry event', ingestType)
+  }
+  return fetchConfig
+}
+
 module.exports = {
   init: (versionString, binName, remoteConf = {}) => {
     global.commandHookStartTime = Date.now()
@@ -115,6 +160,9 @@ module.exports = {
     }
     if (remoteConf.postUrl) {
       postUrl = remoteConf.postUrl
+    }
+    if(remoteConf.ingestType) {
+      ingestType = remoteConf.ingestType //TODO Update Readme to document ingesttype
     }
     configKey = binName + '-cli-telemetry'
   },
