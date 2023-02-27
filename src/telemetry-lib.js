@@ -121,7 +121,7 @@ function _createConfig(eventType, eventData) {
     const timeString = (new Date()).toISOString()
     const obj = {
       events: [{
-      project: 'playground-service',
+      project: '', //TODO fetch this also from CLI pjson
       environment: 'TEST', //TODO change this after POC to use actual env values
       time: timeString,
       ingesttype: 'dunamis',
