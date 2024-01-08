@@ -72,18 +72,18 @@ async function trackEvent (eventType, eventData = '') {
       headers: fetchHeaders,
       body: JSON.stringify({
         id: Math.floor(timestamp * Math.random()),
-        timestamp: timestamp,
+        timestamp,
         _adobeio: {
-          eventType: eventType,
-          eventData: eventData,
+          eventType,
+          eventData,
           cliVersion: rootCliVersion,
-          clientId: clientId,
+          clientId,
           command: prerunEvent.command,
           commandDuration: timestamp - prerunEvent.start,
           commandFlags: prerunEvent.flags.toString(),
           commandSuccess: eventType !== 'command-error',
           nodeVersion: process.version,
-          osNameVersion: osNameVersion
+          osNameVersion
         }
       })
     }
