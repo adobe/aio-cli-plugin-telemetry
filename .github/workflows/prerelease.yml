@@ -26,13 +26,13 @@ jobs:
           git config user.email github-actions@github.com
       - uses: actions/setup-node@v1
         with:
-          node-version: 16
+          node-version: 18
       - run: |
           npm install
           npm test
       - name: Update your package.json with an npm pre-release version
         id: pre-release-version
-        uses: adobe/update-prerelease-npm-version@v1.0.0
+        uses: adobe/update-prerelease-npm-version@v1.1.0
         with:
           pre-release-tag: ${{ github.event.inputs.pre-release-tag }}
           dependencies-to-update: ${{ github.event.inputs.dependencies-to-update }}
