@@ -33,7 +33,7 @@ DESCRIPTION
   Allow the cli to collect anonymous usage data
 ```
 
-_See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v1.2.0/src/commands/telemetry/index.js)_
+_See code: [src/commands/telemetry/index.ts](https://github.com/adobe/aio-cli-plugin-telemetry/blob/v2.0.0/src/commands/telemetry/index.ts)_
 <!-- commandsstop -->
 
 ## Configuration
