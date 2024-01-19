@@ -55,7 +55,7 @@ describe('hook interfaces', () => {
    */
   test('init prompt accept:true', async () => {
     const preEnv = process.env
-    process.env = { ...preEnv, CI: undefined, GITHUB_ACTION: undefined }
+    process.env = { ...preEnv, CI: undefined, GITHUB_ACTIONS: undefined }
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
@@ -70,7 +70,7 @@ describe('hook interfaces', () => {
 
   test('init prompt - full coverage when run by gh actions', async () => {
     const preEnv = process.env
-    process.env = { ...preEnv, CI: undefined, GITHUB_ACTION: undefined }
+    process.env = { ...preEnv, CI: undefined, GITHUB_ACTIONS: undefined }
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: true })
@@ -138,7 +138,7 @@ describe('hook interfaces', () => {
    */
   test('init prompt accept:false', async () => {
     const preEnv = process.env
-    process.env = { ...preEnv, CI: undefined, GITHUB_ACTION: undefined }
+    process.env = { ...preEnv, CI: undefined, GITHUB_ACTIONS: undefined }
     const hook = require('../src/hooks/init')
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: false })
