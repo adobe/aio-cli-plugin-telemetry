@@ -117,7 +117,11 @@ describe('hook interfaces', () => {
   test('no prompt when process.env.CI', async () => {
     const preEnv = process.env
     process.env = { ...preEnv, CI: 'true' }
-    const hook = require('../src/hooks/init')
+    let hook
+    jest.isolateModules(() => {
+      hook = require('../src/hooks/init')
+    })
+
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: false })
     config.get = jest.fn().mockReturnValue(undefined)
