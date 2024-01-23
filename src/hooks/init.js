@@ -9,12 +9,12 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const ciDetect = require('@npmcli/ci-detect')
+const ci = require('ci-info')
 const telemetryLib = require('../telemetry-lib')
 const debug = require('debug')('aio-telemetry:init')
 
 module.exports = async function (opts) {
-  const inCI = ciDetect()
+  const inCI = ci.isCI
   const pjson = opts.config?.pjson || {
     displayName: 'Adobe Developer CLI',
     bin: { aio: '' },
