@@ -15,7 +15,7 @@
     "splunk-logging": "^0.11.1"
   },
   "devDependencies": {
-    "@adobe/eslint-config-aio-lib-config": "^2.0.2",
+    "@adobe/eslint-config-aio-lib-config": "^3.0.0",
     "eslint": "^8.56.0",
     "eslint-config-oclif": "^1",
     "eslint-config-standard": "^17.1.0",
@@ -32,8 +32,7 @@
     "jest-junit": "^13.0.0",
     "memfs": "^4.6.0",
     "oclif": "^4.3.6",
-    "stdout-stderr": "^0.1.9",
-    "typescript": "^5.3.3"
+    "stdout-stderr": "^0.1.9"
   },
   "engines": {
     "node": ">=18"
