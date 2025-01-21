@@ -10,7 +10,6 @@
  * governing permissions and limitations under the License.
  */
 
-const fetch = require('node-fetch')
 const TheCommand = require('../src/commands/telemetry')
 const { stdout } = require('stdout-stderr')
 
@@ -19,9 +18,8 @@ jest.mock('inquirer')
 let command
 
 beforeEach(() => {
-  fetch.resetMocks()
   command = new TheCommand([])
-  fetch.mockResponseOnce('ok')
+  global.setFetchMock()
 })
 
 test('exports a run function', async () => {

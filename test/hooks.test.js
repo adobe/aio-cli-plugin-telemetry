@@ -10,7 +10,6 @@
  * governing permissions and limitations under the License.
  */
 
-const fetch = require('node-fetch')
 const inquirer = require('inquirer')
 const config = require('@adobe/aio-lib-core-config')
 
@@ -28,7 +27,7 @@ const mockPackageJson = {
 
 describe('hook interfaces', () => {
   beforeEach(() => {
-    fetch.mockReset()
+    global.setFetchMock()
   })
 
   test('command-error', async () => {

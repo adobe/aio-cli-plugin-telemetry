@@ -16,8 +16,12 @@ const { vol } = require('memfs')
 jest.setTimeout(3000)
 jest.useFakeTimers()
 
-const fetch = require('jest-fetch-mock')
-jest.setMock('node-fetch', fetch)
+global.setFetchMock = (ok = true, mockData = {}) => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok,
+    json: () => ok ? Promise.resolve(mockData) : Promise.reject(mockData)
+  })
+}
 
 vol.reset()
 

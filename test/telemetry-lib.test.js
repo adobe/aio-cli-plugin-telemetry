@@ -10,16 +10,19 @@
  * governing permissions and limitations under the License.
  */
 
-const fetch = require('node-fetch')
 const telemetryLib = require('../src/telemetry-lib')
 const config = require('@adobe/aio-lib-core-config')
 
 jest.mock('@adobe/aio-lib-core-config')
-
+jest.mock('debug', () => {
+  global.mockDebug = jest.fn()
+  return () => global.mockDebug
+})
 describe('telemetry-lib', () => {
   beforeEach(() => {
     jest.resetModules()
-    fetch.mockReset()
+    global.mockDebug.mockReset()
+    global.setFetchMock()
   })
 
   test('exports messages', async () => {
@@ -43,10 +46,28 @@ describe('telemetry-lib', () => {
   test('uses client id from config', async () => {
     config.get.mockReturnValue('clientidxyz')
     telemetryLib.init('a@4', 'binTest2')
+
     await telemetryLib.trackEvent('test-event')
+
     expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.clientId')
     expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.optOut', 'global')
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"clientId":"clientidxyz"') }))
+    expect(global.mockDebug).not.toHaveBeenCalledWith(expect.stringContaining('error reaching telemetry server'))
+  })
+
+  test('fetch error', async () => {
+    const error = 'some error'
+    global.fetch = jest.fn().mockRejectedValue(error)
+
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binTest2')
+    await telemetryLib.trackEvent('test-event')
+
+    expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.clientId')
+    expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.optOut', 'global')
+    expect(fetch).toHaveBeenCalledWith(expect.any(String),
+      expect.objectContaining({ body: expect.stringContaining('"clientId":"clientidxyz"') }))
+    expect(global.mockDebug).toHaveBeenCalledWith(expect.stringContaining('error reaching telemetry server'), error)
   })
 })

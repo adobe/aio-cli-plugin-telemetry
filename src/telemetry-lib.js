@@ -9,7 +9,6 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const fetch = require('node-fetch')
 const config = require('@adobe/aio-lib-core-config')
 const osName = require('os-name')
 const inquirer = require('inquirer')
