@@ -10,11 +10,13 @@
  * governing permissions and limitations under the License.
  */
 
-const fetch = require('node-fetch')
+const { createFetch } = require('@adobe/aio-lib-core-networking')
 const telemetryLib = require('../src/telemetry-lib')
 const config = require('@adobe/aio-lib-core-config')
 
 jest.mock('@adobe/aio-lib-core-config')
+
+const fetch = createFetch()
 
 describe('telemetry-lib', () => {
   beforeEach(() => {
