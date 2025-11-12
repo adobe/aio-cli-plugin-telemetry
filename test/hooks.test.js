@@ -10,12 +10,14 @@
  * governing permissions and limitations under the License.
  */
 
-const fetch = require('node-fetch')
+const { createFetch } = require('@adobe/aio-lib-core-networking')
 const inquirer = require('inquirer')
 const config = require('@adobe/aio-lib-core-config')
 
 jest.mock('inquirer')
 jest.mock('@adobe/aio-lib-core-config')
+
+const fetch = createFetch()
 
 const mockPackageJson = {
   bin: { aio: '' },

@@ -16,8 +16,10 @@ const { vol } = require('memfs')
 jest.setTimeout(3000)
 jest.useFakeTimers()
 
-const fetch = require('jest-fetch-mock')
-jest.setMock('node-fetch', fetch)
+const mockFetch = require('jest-fetch-mock')
+jest.mock('@adobe/aio-lib-core-networking', () => ({
+  createFetch: jest.fn(() => mockFetch)
+}))
 
 vol.reset()
 
