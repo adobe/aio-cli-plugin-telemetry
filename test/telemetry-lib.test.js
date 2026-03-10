@@ -51,4 +51,74 @@ describe('telemetry-lib', () => {
     expect(fetch).toHaveBeenCalledWith(expect.any(String),
       expect.objectContaining({ body: expect.stringContaining('"clientId":"clientidxyz"') }))
   })
+
+  test('trackEvent includes invocation_context and agent_name in payload', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binTest')
+    await telemetryLib.trackEvent('postrun')
+    const body = JSON.parse(fetch.mock.calls[0][1].body)
+    expect(body._adobeio).toHaveProperty('invocation_context')
+    expect(body._adobeio).toHaveProperty('agent_name')
+    expect(['agent', 'human']).toContain(body._adobeio.invocation_context)
+  })
+
+  test('trackEvent sends agent context when CURSOR_AGENT env is set', async () => {
+    const orig = process.env.CURSOR_AGENT
+    process.env.CURSOR_AGENT = '1'
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binTest')
+    await telemetryLib.trackEvent('postrun')
+    const body = JSON.parse(fetch.mock.calls[0][1].body)
+    expect(body._adobeio.invocation_context).toBe('agent')
+    expect(body._adobeio.agent_name).toBe('cursor')
+    if (orig !== undefined) process.env.CURSOR_AGENT = orig
+    else delete process.env.CURSOR_AGENT
+  })
+})
+
+describe('getInvocationContext', () => {
+  test('returns human when no agent env vars are set', () => {
+    const result = telemetryLib.getInvocationContext({})
+    expect(result).toEqual({ isAgent: false, agentName: null })
+  })
+
+  test('returns agent cursor when CURSOR_AGENT is set', () => {
+    const result = telemetryLib.getInvocationContext({ CURSOR_AGENT: '1' })
+    expect(result).toEqual({ isAgent: true, agentName: 'cursor' })
+  })
+
+  test('returns agent with name when AGENT is set to a value', () => {
+    const result = telemetryLib.getInvocationContext({ AGENT: 'goose' })
+    expect(result).toEqual({ isAgent: true, agentName: 'goose' })
+  })
+
+  test('returns agent generic when AGENT=1', () => {
+    const result = telemetryLib.getInvocationContext({ AGENT: '1' })
+    expect(result).toEqual({ isAgent: true, agentName: 'generic' })
+  })
+
+  test('returns aio-opt-in when AIO_AGENT is set', () => {
+    const result = telemetryLib.getInvocationContext({ AIO_AGENT: '1' })
+    expect(result).toEqual({ isAgent: true, agentName: 'aio-opt-in' })
+  })
+
+  test('returns aio-opt-in when AIO_INVOCATION_CONTEXT=agent', () => {
+    const result = telemetryLib.getInvocationContext({ AIO_INVOCATION_CONTEXT: 'agent' })
+    expect(result).toEqual({ isAgent: true, agentName: 'aio-opt-in' })
+  })
+
+  test('returns human when AIO_INVOCATION_CONTEXT is not agent', () => {
+    const result = telemetryLib.getInvocationContext({ AIO_INVOCATION_CONTEXT: 'human' })
+    expect(result).toEqual({ isAgent: false, agentName: null })
+  })
+
+  test('AGENT takes precedence over tool-specific when both set', () => {
+    const result = telemetryLib.getInvocationContext({ AGENT: 'goose', CURSOR_AGENT: '1' })
+    expect(result).toEqual({ isAgent: true, agentName: 'goose' })
+  })
+
+  test('ignores empty string env values', () => {
+    const result = telemetryLib.getInvocationContext({ CURSOR_AGENT: '' })
+    expect(result).toEqual({ isAgent: false, agentName: null })
+  })
 })

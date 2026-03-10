@@ -19,6 +19,47 @@ const debug = require('debug')('aio-telemetry:telemetry-lib')
 
 let isDisabledForCommand = false
 
+/**
+ * Environment variables checked for agent detection (proposed standard first, then tool-specific).
+ * Used for metrics only. See aio-cli README "Agent detection" for full list.
+ */
+const AGENT_ENV_VARS = [
+  { env: 'AGENT', name: (v) => (v && v !== '1' && v !== 'true' ? String(v).toLowerCase() : 'generic') },
+  { env: 'AI_AGENT', name: (v) => (v && v !== '1' && v !== 'true' ? String(v).toLowerCase() : 'generic') },
+  { env: 'AIO_AGENT', name: () => 'aio-opt-in' },
+  { env: 'AIO_INVOCATION_CONTEXT', name: (v) => (v === 'agent' ? 'aio-opt-in' : null) },
+  { env: 'CURSOR_AGENT', name: () => 'cursor' },
+  { env: 'CLAUDECODE', name: () => 'claude' },
+  { env: 'CLAUDE_CODE', name: () => 'claude' },
+  { env: 'GEMINI_CLI', name: () => 'gemini' },
+  { env: 'CODEX_SANDBOX', name: () => 'codex' },
+  { env: 'AUGMENT_AGENT', name: () => 'augment' },
+  { env: 'CLINE_ACTIVE', name: () => 'cline' },
+  { env: 'OPENCODE_CLIENT', name: () => 'opencode' },
+  { env: 'REPL_ID', name: () => 'replit' }
+]
+
+/**
+ * Detects whether the CLI is being invoked by an AI agent (vs a human) using env vars.
+ * Used for metrics only.
+ *
+ * @param {object} [env] - Environment object to read (defaults to process.env when omitted).
+ * @returns {{ isAgent: boolean, agentName: string|null }}
+ */
+function getInvocationContext (env) {
+  const envToUse = env !== undefined ? env : process.env
+  for (const { env: key, name } of AGENT_ENV_VARS) {
+    const value = envToUse[key]
+    if (value !== undefined && value !== '') {
+      const agentName = typeof name === 'function' ? name(value) : name
+      if (agentName) {
+        return { isAgent: true, agentName }
+      }
+    }
+  }
+  return { isAgent: false, agentName: null }
+}
+
 const osNameVersion = osName()
 
 // this is set by the init hook, ex. @adobe/aio-cli@8.2.0
@@ -69,6 +110,7 @@ async function trackEvent (eventType, eventData = '') {
   } else {
     const clientId = getClientId()
     const timestamp = Date.now()
+    const invocationContext = getInvocationContext()
     const fetchConfig = {
       method: 'POST',
       headers: fetchHeaders,
@@ -85,7 +127,9 @@ async function trackEvent (eventType, eventData = '') {
           commandFlags: prerunEvent.flags.toString(),
           commandSuccess: eventType !== 'command-error',
           nodeVersion: process.version,
-          osNameVersion
+          osNameVersion,
+          invocation_context: invocationContext.isAgent ? 'agent' : 'human',
+          agent_name: invocationContext.agentName
         }
       })
     }
@@ -109,6 +153,7 @@ function trackPrerun (command, flags, start) {
 }
 
 module.exports = {
+  getInvocationContext,
   init: (versionString, binName, remoteConf = {}) => {
     global.commandHookStartTime = Date.now()
     rootCliVersion = versionString
