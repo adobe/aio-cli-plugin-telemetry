@@ -13,15 +13,22 @@
 const { createFetch } = require('@adobe/aio-lib-core-networking')
 const TheCommand = require('../src/commands/telemetry')
 const { stdout } = require('stdout-stderr')
+const config = require('@adobe/aio-lib-core-config')
 
 jest.mock('inquirer')
+jest.mock('@adobe/aio-lib-core-config')
 
 const fetch = createFetch()
 let command
+let mockConfig
 
 beforeEach(() => {
   fetch.resetMocks()
-  command = new TheCommand([])
+  config.get.mockReturnValue(false) // telemetry enabled by default
+  mockConfig = {
+    runHook: jest.fn().mockResolvedValue({ successes: [], failures: [] })
+  }
+  command = new TheCommand([], mockConfig)
   fetch.mockResponseOnce('ok')
 })
 
@@ -49,6 +56,7 @@ describe('telemetry command', () => {
   })
 
   test('telemetry (get) off', async () => {
+    config.get.mockReturnValue(true) // optOut=true means telemetry off
     command.argv = []
     await command.run()
     expect(stdout.output).toMatch('Telemetry is off')
