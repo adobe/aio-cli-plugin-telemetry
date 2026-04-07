@@ -39,8 +39,8 @@ _See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-pl
 ## Configuration
 The following values need to be set when this plugin is hosted by different CLIs
 - `aioTelemetry`: defined object in root cli package.json with values:
-  - `postUrl` : Where to post telemetry data
-  - `postHeaders`: Any specific headers that need to be posted with telemetry data (ex. x-api-key)
+  - `postUrl` : Where to post telemetry data (overrides the default New Relic ingest endpoint)
+  - `fetchHeaders`: Headers to send with the telemetry POST request (overrides the default New Relic ingest headers)
   - `productPrivacyPolicyLink`: A link to display to users when prompting to optIn
 - `productName`: How to refer to the cli when user is prompted to enable telemetry
   - this value is read from `displayName` or `name` of the cli's package.json
@@ -48,22 +48,67 @@ The following values need to be set when this plugin is hosted by different CLIs
   - ex. To turn telemetry on run `${productBin} telemetry on`
   - this value is read from 'bin' of the cli's package.json, if the package exports more than 1 bin the first is used
 
+## Opting out via environment variable
+
+Set `AIO_TELEMETRY_DISABLED=1` (or any truthy value) to suppress all telemetry without modifying the persisted opt-in state. Useful for CI pipelines and scripted environments.
+
+```sh
+AIO_TELEMETRY_DISABLED=1 aio app deploy
+```
+
+## Flush architecture
+
+Telemetry events are sent via a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI process spawns the worker and immediately unrefs it, so the CLI exits at its normal time without waiting for the HTTP POST to complete. The worker owns the ingest endpoint and credentials.
+
+## Agent detection
+
+The plugin detects whether the CLI is being invoked by an AI agent or a human by inspecting environment variables at the time of the event. The detected context is included in every event as `invocation_context` (`"agent"` or `"human"`) and `agent_name`.
+
+Supported agents detected automatically:
+
+| Environment variable | Detected agent name |
+|---|---|
+| `AGENT` | value of the variable (or `"generic"` if `1`/`true`) |
+| `AI_AGENT` | value of the variable (or `"generic"` if `1`/`true`) |
+| `AIO_AGENT` | `aio-opt-in` |
+| `AIO_INVOCATION_CONTEXT=agent` | `aio-opt-in` |
+| `CURSOR_AGENT` | `cursor` |
+| `CLAUDECODE` / `CLAUDE_CODE` | `claude` |
+| `GEMINI_CLI` | `gemini` |
+| `CODEX_SANDBOX` | `codex` |
+| `AUGMENT_AGENT` | `augment` |
+| `CLINE_ACTIVE` | `cline` |
+| `OPENCODE_CLIENT` | `opencode` |
+| `REPL_ID` | `replit` |
+| `PATH` containing `github.copilot-chat` | `github-copilot` |
+
+To opt into agent tracking without setting a tool-specific variable, set `AIO_INVOCATION_CONTEXT=agent`.
+
 ## POST data
 
-Here is an example of the event data as posted:
-```
-{ "id": 656915165813,
-  "timestamp": 1673404918437,
-  "_adobeio": {
-    "eventType": "telemetry-prompt",
-    "eventData": "accepted",
-    "cliVersion": "@adobe/aio-cli@9.1.1",
-    "clientId": 264421030538,
-    "commandDuration": 5661,
-    "commandFlags": "",
-    "commandSuccess": true,
-    "nodeVersion": "v14.20.0",
-    "osNameVersion": "macOS"
-  }
-}
+Events are posted to the New Relic Metric API. Here is an example of the payload:
+
+```json
+[{
+  "metrics": [{
+    "name": "aio.cli.telemetry",
+    "type": "gauge",
+    "value": 1,
+    "timestamp": 1673404918437,
+    "attributes": {
+      "eventType": "postrun",
+      "eventData": "{}",
+      "cliVersion": "@adobe/aio-cli@11.0.2",
+      "clientId": 264421030538,
+      "command": "app:deploy",
+      "commandDuration": 5661,
+      "commandFlags": "",
+      "commandSuccess": true,
+      "nodeVersion": "v22.21.1",
+      "osNameVersion": "macOS Sequoia 15.4",
+      "invocation_context": "human",
+      "agent_name": "unknown"
+    }
+  }]
+}]
 ```

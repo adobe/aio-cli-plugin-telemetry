@@ -9,28 +9,81 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { createFetch } = require('@adobe/aio-lib-core-networking')
+const { spawn } = require('child_process')
+const path = require('path')
+const os = require('os')
 const config = require('@adobe/aio-lib-core-config')
 
-const fetch = createFetch()
-const osName = require('os-name')
 const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
 let isDisabledForCommand = false
 
-const osNameVersion = osName()
+/**
+ * Detects GitHub Copilot Chat command shims injected into PATH.
+ *
+ * @param {string} pathValue - PATH environment variable value.
+ * @returns {string|null} Agent name when detected, otherwise null.
+ */
+function detectCopilotAgent (pathValue) {
+  if (pathValue.includes('github.copilot-chat/debugCommand') || pathValue.includes('github.copilot-chat/copilotCli')) {
+    return 'github-copilot'
+  }
+  return null
+}
 
-// this is set by the init hook, ex. @adobe/aio-cli@8.2.0
+// TODO: detect VSCODE run as an agent
+/**
+ * Environment variables checked for agent detection (proposed standard first, then tool-specific).
+ * Used for metrics only. See aio-cli README "Agent detection" for full list.
+ */
+const AGENT_ENV_VARS = [
+  { env: 'AGENT', name: (v) => (v && v !== '1' && v !== 'true' ? String(v).toLowerCase() : 'generic') },
+  { env: 'AI_AGENT', name: (v) => (v && v !== '1' && v !== 'true' ? String(v).toLowerCase() : 'generic') },
+  { env: 'AIO_AGENT', name: () => 'aio-opt-in' },
+  { env: 'AIO_INVOCATION_CONTEXT', name: (v) => (v === 'agent' ? 'aio-opt-in' : null) },
+  { env: 'CURSOR_AGENT', name: () => 'cursor' },
+  { env: 'CLAUDECODE', name: () => 'claude' },
+  { env: 'CLAUDE_CODE', name: () => 'claude' },
+  { env: 'GEMINI_CLI', name: () => 'gemini' },
+  { env: 'CODEX_SANDBOX', name: () => 'codex' },
+  { env: 'AUGMENT_AGENT', name: () => 'augment' },
+  { env: 'CLINE_ACTIVE', name: () => 'cline' },
+  { env: 'OPENCODE_CLIENT', name: () => 'opencode' },
+  { env: 'PATH', name: detectCopilotAgent },
+  { env: 'REPL_ID', name: () => 'replit' }
+]
+
+/**
+ * Detects whether the CLI is being invoked by an AI agent (vs a human) using env vars.
+ * Used for metrics only.
+ *
+ * @param {object} [env] - Environment object to read (defaults to process.env when omitted).
+ * @returns {{ isAgent: boolean, agentName: string|null }} Invocation context metadata.
+ */
+function getInvocationContext (env) {
+  const envToUse = env !== undefined ? env : process.env
+  for (const { env: key, name } of AGENT_ENV_VARS) {
+    const value = envToUse[key]
+    if (value !== undefined && value !== '') {
+      const agentName = name(value)
+      if (agentName) {
+        return { isAgent: true, agentName }
+      }
+    }
+  }
+  return { isAgent: false, agentName: null }
+}
+
+const osNameVersion = `${os.type()} ${os.release()}`
+
+// this is set by the init hook, ex. @adobe/aio-cli@8.2.0q
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
-// postUrl and fetchHeaders are set by the init hook if these values are set in the root cli package.json
-let postUrl = 'https://dcs.adobedc.net/collection/ffb5bdcefe744485c5c968662012f91293eee10f5dac4ca009beb14d7c028424?asynchronous=true'
+
 let fetchHeaders = {
   'Content-Type': 'application/json',
-  'x-adobe-flow-id': '18dce8db-f523-4ff1-8806-0719de3fd367',
-  'x-api-key': 'adobe_io',
-  'sandbox-name': 'developer-lifecycle-dev1'
+  'Api-Key': 'd6b73f9c1859dc462e6de8dee3de1eb2FFFFNRAL'
 }
 let configKey = 'aio-cli-telemetry'
 const defaultPrivacyPolicyLink = 'https://developer.adobe.com/app-builder/docs/guides/telemetry/'
@@ -60,42 +113,50 @@ const getOffMessage = (binName) => {
  * @param {string} eventData additional data, like the error message, or custom telemetry payload
  * @returns {undefined}
  */
-async function trackEvent (eventType, eventData = '') {
+async function trackEvent (eventType, eventData = {}) {
   // prerunEvent will be null when telemetry-prompt event fires, this happens before
   // any command is actually run, so we want to ignore the command+flags in this case
 
-  if (isDisabledForCommand || config.get(`${configKey}.optOut`, 'global') === true) {
+  if (isDisabledForCommand || process.env.AIO_TELEMETRY_DISABLED || config.get(`${configKey}.optOut`, 'global') === true) {
     debug('Telemetry is off. Not logging telemetry event', eventType)
   } else {
     const clientId = getClientId()
     const timestamp = Date.now()
+    const invocationContext = getInvocationContext()
     const fetchConfig = {
       method: 'POST',
       headers: fetchHeaders,
-      body: JSON.stringify({
-        id: Math.floor(timestamp * Math.random()),
-        timestamp,
-        _adobeio: {
-          eventType,
-          eventData,
-          cliVersion: rootCliVersion,
-          clientId,
-          command: prerunEvent.command,
-          commandDuration: timestamp - prerunEvent.start,
-          commandFlags: prerunEvent.flags.toString(),
-          commandSuccess: eventType !== 'command-error',
-          nodeVersion: process.version,
-          osNameVersion
-        }
-      })
+      body: JSON.stringify([{
+        metrics: [{
+          name: 'aio.cli.telemetry',
+          type: 'gauge',
+          value: 1,
+          // id: Math.floor(timestamp * Math.random()),
+          timestamp,
+          attributes: {
+            eventType,
+            eventData: JSON.stringify(eventData),
+            cliVersion: rootCliVersion,
+            clientId,
+            command: prerunEvent.command,
+            commandDuration: timestamp - prerunEvent.start,
+            commandFlags: prerunEvent.flags.toString(),
+            commandSuccess: eventType !== 'command-error',
+            nodeVersion: process.version,
+            osNameVersion,
+            invocation_context: /* istanbul ignore next */ invocationContext.isAgent ? 'agent' : 'human',
+            agent_name: /* istanbul ignore next */ invocationContext.agentName || 'unknown'
+          }
+        }]
+      }])
     }
-    try {
-      debug('posting telemetry event', fetchConfig)
-      const response = await fetch(postUrl, fetchConfig)
-      debug('response.ok = ', response.ok)
-    } catch (exc) {
-      debug('error reaching telemetry server : ', exc)
-    }
+    const flushPayload = JSON.stringify({ body: fetchConfig.body })
+    const child = spawn(process.execPath, [path.join(__dirname, 'flush-worker.js'), flushPayload], {
+      env: { ...process.env, AIO_TELEMETRY_DISABLED: '1' },
+      detached: true,
+      stdio: 'ignore'
+    })
+    child.unref()
   }
 }
 
@@ -109,14 +170,12 @@ function trackPrerun (command, flags, start) {
 }
 
 module.exports = {
+  getInvocationContext,
   init: (versionString, binName, remoteConf = {}) => {
     global.commandHookStartTime = Date.now()
     rootCliVersion = versionString
     if (remoteConf.fetchHeaders) {
       fetchHeaders = remoteConf.fetchHeaders
-    }
-    if (remoteConf.postUrl) {
-      postUrl = remoteConf.postUrl
     }
     configKey = binName + '-cli-telemetry'
   },
@@ -128,13 +187,13 @@ module.exports = {
     config.set(`${configKey}.optOut`, true)
   },
   isEnabled: () => {
-    return !isDisabledForCommand && config.get(`${configKey}.optOut`, 'global') === false
+    return !isDisabledForCommand && !process.env.AIO_TELEMETRY_DISABLED && config.get(`${configKey}.optOut`, 'global') === false
   },
   disableForCommand: () => {
     isDisabledForCommand = true
   },
   isNull: () => {
-    return config.get(`${configKey}.optOut`, 'global') === undefined
+    return !process.env.AIO_TELEMETRY_DISABLED && config.get(`${configKey}.optOut`, 'global') === undefined
   },
   trackEvent,
   trackPrerun,

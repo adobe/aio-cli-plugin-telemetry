@@ -16,8 +16,12 @@ const config = require('@adobe/aio-lib-core-config')
 
 jest.mock('inquirer')
 jest.mock('@adobe/aio-lib-core-config')
+jest.mock('child_process', () => ({
+  spawn: jest.fn(() => ({ unref: jest.fn() }))
+}))
 
 const fetch = createFetch()
+const { spawn } = require('child_process')
 
 const mockPackageJson = {
   bin: { aio: '' },
@@ -31,24 +35,25 @@ const mockPackageJson = {
 describe('hook interfaces', () => {
   beforeEach(() => {
     fetch.mockReset()
+    spawn.mockClear()
   })
 
   test('command-error', async () => {
     const hook = require('../src/hooks/command-error')
     expect(typeof hook).toBe('function')
     await hook({ message: 'msg' })
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith(expect.any(String),
-      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"command-error"') }))
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.body).toContain('"eventType":"command-error"')
   })
 
   test('command-not-found', async () => {
     const hook = require('../src/hooks/command-not-found')
     expect(typeof hook).toBe('function')
     await hook({ id: 'id' })
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith(expect.any(String),
-      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"command-not-found"') }))
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.body).toContain('"eventType":"command-not-found"')
   })
 
   /**
@@ -64,9 +69,10 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ config: { name: 'name', version: '0.0.1', pjson: mockPackageJson }, argv: [] })
     expect(inquirer.prompt).toHaveBeenCalled()
-    expect(fetch).toHaveBeenCalledWith(expect.any(String),
-      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"accepted"') }))
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.body).toContain('"eventType":"telemetry-prompt"')
+    expect(flushPayload.body).toContain('accepted')
     process.env = preEnv
   })
 
@@ -79,7 +85,7 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ id: 'telemetry', config: { name: 'name', version: '0.0.1' }, argv: [] })
     expect(inquirer.prompt).not.toHaveBeenCalled()
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
     process.env = preEnv
   })
 
@@ -90,7 +96,7 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ id: 'telemetry', config: { name: 'name', version: '0.0.1' }, argv: [] })
     expect(inquirer.prompt).not.toHaveBeenCalled()
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
   })
 
   test('init prompt - dont run when oclif is generating readme', async () => {
@@ -100,7 +106,7 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ id: 'readme', config: { name: 'name', version: '0.0.1' }, argv: [] })
     expect(inquirer.prompt).not.toHaveBeenCalled()
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
   })
 
   test('init prompt - dont run when oclif is generating readme and CI is off', async () => {
@@ -112,7 +118,7 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ id: 'readme', config: { name: 'name', version: '0.0.1' }, argv: [] })
     expect(inquirer.prompt).not.toHaveBeenCalled()
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
     process.env = preEnv
   })
 
@@ -129,7 +135,7 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     expect(inquirer.prompt).not.toHaveBeenCalled()
     await hook({ config: { name: 'name', version: '0.0.1' }, argv: ['--verbose'] })
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
     expect(inquirer.prompt).not.toHaveBeenCalled()
     process.env = preEnv
   })
@@ -147,9 +153,10 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ config: { name: 'name', version: '0.0.1' }, argv: ['--verbose'] })
     expect(inquirer.prompt).toHaveBeenCalled()
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith(expect.any(String),
-      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-prompt","eventData":"declined"') }))
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.body).toContain('"eventType":"telemetry-prompt"')
+    expect(flushPayload.body).toContain('declined')
     process.env = preEnv
   })
 
@@ -162,18 +169,18 @@ describe('hook interfaces', () => {
       .mockReturnValueOnce(false)
 
     await hook({ message: 'msg' })
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith(expect.any(String),
-      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"telemetry-custom-event"') }))
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.body).toContain('"eventType":"telemetry-custom-event"')
   })
 
   test('postrun', async () => {
     const hook = require('../src/hooks/postrun')
     expect(typeof hook).toBe('function')
     await hook({ Command: { id: 'id' }, argv: ['--hello'] })
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(fetch).toHaveBeenCalledWith(expect.any(String),
-      expect.objectContaining({ body: expect.stringContaining('"_adobeio":{"eventType":"postrun"') }))
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.body).toContain('"eventType":"postrun"')
   })
 
   /**
@@ -187,16 +194,16 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ config: { name: 'name', version: '0.0.1' }, argv: ['--no-telemetry'] })
     expect(inquirer.prompt).not.toHaveBeenCalled()
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
   })
 
   test('prerun', async () => {
     const hook = require('../src/hooks/prerun')
     expect(typeof hook).toBe('function')
     await hook({ Command: { id: 'id' }, argv: ['--hello'] })
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
     await hook({ Command: { id: 'id' }, argv: ['--hello', '--no-telemetry'] })
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
   })
 
   test('prerun disables telemetry for postrun', async () => {
@@ -205,6 +212,6 @@ describe('hook interfaces', () => {
     config.get.mockResolvedValue('clientidxyz')
     await preHook({ Command: { id: 'id' }, argv: ['--hello', '--no-telemetry'] })
     await postHook({ Command: { id: 'id' }, argv: ['--hello', '--no-telemetry'] })
-    expect(fetch).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
   })
 })
