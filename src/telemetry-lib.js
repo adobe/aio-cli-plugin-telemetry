@@ -26,15 +26,9 @@ let isDisabledForCommand = false
  * @returns {string|null} Agent name when detected, otherwise null.
  */
 function detectCopilotAgent (pathValue) {
-  pathValue = pathValue || ''
-  if (typeof pathValue !== 'string') {
-    return null
-  }
-
   if (pathValue.includes('github.copilot-chat/debugCommand') || pathValue.includes('github.copilot-chat/copilotCli')) {
     return 'github-copilot'
   }
-
   return null
 }
 
@@ -72,7 +66,7 @@ function getInvocationContext (env) {
   for (const { env: key, name } of AGENT_ENV_VARS) {
     const value = envToUse[key]
     if (value !== undefined && value !== '') {
-      const agentName = typeof name === 'function' ? name(value) : name
+      const agentName = name(value)
       if (agentName) {
         return { isAgent: true, agentName }
       }
@@ -83,7 +77,7 @@ function getInvocationContext (env) {
 
 const osNameVersion = osName()
 
-// this is set by the init hook, ex. @adobe/aio-cli@8.2.0
+// this is set by the init hook, ex. @adobe/aio-cli@8.2.0q
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
 
@@ -151,8 +145,8 @@ async function trackEvent (eventType, eventData = {}) {
             commandSuccess: eventType !== 'command-error',
             nodeVersion: process.version,
             osNameVersion,
-            invocation_context: invocationContext.isAgent ? 'agent' : 'human',
-            agent_name: invocationContext?.agentName || 'unknown'
+            invocation_context: /* istanbul ignore next */ invocationContext.isAgent ? 'agent' : 'human',
+            agent_name: /* istanbul ignore next */ invocationContext.agentName || 'unknown'
           }
         }]
       }])

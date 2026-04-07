@@ -13,14 +13,20 @@ governing permissions and limitations under the License.
  * Telemetry flush worker — spawned as a detached subprocess by trackEvent so
  * the parent process can exit immediately without waiting on the HTTP POST.
  *
- * Accepts a single CLI argument: a JSON-encoded object with shape { body: string }.
- * The endpoint URL and auth headers are owned here so they never appear in
- * process arguments (ps aux) or are passed across the IPC boundary.
+ * Accepts a single CLI argument: a JSON-encoded object with shape { body: string }
+ * where body is a serialised New Relic metric payload (array of metric batches).
+ *
+ * On each run the worker merges any previously-failed events from the persistent
+ * queue (src/queue-store.js) with the current event before POSTing. On success
+ * the queue is cleared; on failure the merged set is written back so the next
+ * invocation can retry.
  */
 
 'use strict'
 
 const { createFetch } = require('@adobe/aio-lib-core-networking')
+const { readQueue, writeQueue, clearQueue } = require('./queue-store')
+
 const fetch = createFetch()
 
 const POST_URL = 'https://metric-api.newrelic.com/metric/v1'
@@ -31,16 +37,38 @@ const FETCH_HEADERS = {
 }
 
 async function main () {
+  // Parse the current event payload passed by the parent process.
+  let currentMetrics
   try {
     const { body } = JSON.parse(process.argv[2])
+    currentMetrics = JSON.parse(body)[0].metrics
+  } catch {
+    // Malformed argument — nothing useful to do.
+    return
+  }
+
+  // Merge previously-queued metrics (if any) with the current event so they
+  // are all retried in a single POST.
+  const queuedMetrics = readQueue()
+  const allMetrics = [...queuedMetrics, ...currentMetrics]
+
+  try {
     await fetch(POST_URL, {
       method: 'POST',
       headers: FETCH_HEADERS,
-      body
+      body: JSON.stringify([{ metrics: allMetrics }])
     })
-  } catch (e) {
-    // silently ignore — telemetry errors should never surface to users
+    // Successful delivery — the queue is no longer needed.
+    clearQueue()
+  } catch {
+    // Network failure — persist all metrics so the next invocation can retry.
+    writeQueue(allMetrics)
   }
 }
 
-main()
+/* istanbul ignore next */
+if (require.main === module) {
+  main()
+}
+
+module.exports = { main }

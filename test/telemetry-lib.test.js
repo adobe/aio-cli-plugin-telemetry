@@ -156,6 +156,53 @@ describe('getInvocationContext', () => {
     const result = telemetryLib.getInvocationContext({ CURSOR_AGENT: '' })
     expect(result).toEqual({ isAgent: false, agentName: null })
   })
+
+  test('returns agent generic when AGENT=true', () => {
+    const result = telemetryLib.getInvocationContext({ AGENT: 'true' })
+    expect(result).toEqual({ isAgent: true, agentName: 'generic' })
+  })
+
+  test('returns aio-opt-in when AI_AGENT is set', () => {
+    const result = telemetryLib.getInvocationContext({ AI_AGENT: 'my-agent' })
+    expect(result).toEqual({ isAgent: true, agentName: 'my-agent' })
+  })
+
+  test('returns generic when AI_AGENT=1', () => {
+    const result = telemetryLib.getInvocationContext({ AI_AGENT: '1' })
+    expect(result).toEqual({ isAgent: true, agentName: 'generic' })
+  })
+
+  test('returns claude when CLAUDECODE is set', () => {
+    expect(telemetryLib.getInvocationContext({ CLAUDECODE: '1' })).toEqual({ isAgent: true, agentName: 'claude' })
+  })
+
+  test('returns claude when CLAUDE_CODE is set', () => {
+    expect(telemetryLib.getInvocationContext({ CLAUDE_CODE: '1' })).toEqual({ isAgent: true, agentName: 'claude' })
+  })
+
+  test('returns gemini when GEMINI_CLI is set', () => {
+    expect(telemetryLib.getInvocationContext({ GEMINI_CLI: '1' })).toEqual({ isAgent: true, agentName: 'gemini' })
+  })
+
+  test('returns codex when CODEX_SANDBOX is set', () => {
+    expect(telemetryLib.getInvocationContext({ CODEX_SANDBOX: '1' })).toEqual({ isAgent: true, agentName: 'codex' })
+  })
+
+  test('returns augment when AUGMENT_AGENT is set', () => {
+    expect(telemetryLib.getInvocationContext({ AUGMENT_AGENT: '1' })).toEqual({ isAgent: true, agentName: 'augment' })
+  })
+
+  test('returns cline when CLINE_ACTIVE is set', () => {
+    expect(telemetryLib.getInvocationContext({ CLINE_ACTIVE: '1' })).toEqual({ isAgent: true, agentName: 'cline' })
+  })
+
+  test('returns opencode when OPENCODE_CLIENT is set', () => {
+    expect(telemetryLib.getInvocationContext({ OPENCODE_CLIENT: '1' })).toEqual({ isAgent: true, agentName: 'opencode' })
+  })
+
+  test('returns replit when REPL_ID is set', () => {
+    expect(telemetryLib.getInvocationContext({ REPL_ID: 'abc123' })).toEqual({ isAgent: true, agentName: 'replit' })
+  })
 })
 
 describe('AIO_TELEMETRY_DISABLED', () => {
