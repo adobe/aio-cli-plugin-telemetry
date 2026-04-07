@@ -36,6 +36,11 @@ const FETCH_HEADERS = {
   'Api-Key': 'd6b73f9c1859dc462e6de8dee3de1eb2FFFFNRAL'
 }
 
+/**
+ * Reads the persistent queue, merges it with the current event, POSTs the batch,
+ * and either clears the queue on success or writes back on failure for retry.
+ * @returns {Promise<void>}
+ */
 async function main () {
   // Parse the current event payload passed by the parent process.
   let currentMetrics

@@ -81,7 +81,6 @@ const osNameVersion = osName()
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
 
-let postUrl = 'https://metric-api.newrelic.com/metric/v1'
 let fetchHeaders = {
   'Content-Type': 'application/json',
   'Api-Key': 'd6b73f9c1859dc462e6de8dee3de1eb2FFFFNRAL'
@@ -177,9 +176,6 @@ module.exports = {
     rootCliVersion = versionString
     if (remoteConf.fetchHeaders) {
       fetchHeaders = remoteConf.fetchHeaders
-    }
-    if (remoteConf.postUrl) {
-      postUrl = remoteConf.postUrl
     }
     configKey = binName + '-cli-telemetry'
   },

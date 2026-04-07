@@ -29,7 +29,7 @@ const os = require('os')
 
 /**
  * Resolves the absolute path to the queue file, honouring XDG_CONFIG_HOME when set.
- * @returns {string}
+ * @returns {string} Absolute path to .telemetry-queue.json.
  */
 function getQueuePath () {
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
