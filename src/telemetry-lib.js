@@ -11,9 +11,9 @@ governing permissions and limitations under the License.
 
 const { spawn } = require('child_process')
 const path = require('path')
+const os = require('os')
 const config = require('@adobe/aio-lib-core-config')
 
-const osName = require('os-name')
 const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
@@ -75,7 +75,7 @@ function getInvocationContext (env) {
   return { isAgent: false, agentName: null }
 }
 
-const osNameVersion = osName()
+const osNameVersion = `${os.type()} ${os.release()}`
 
 // this is set by the init hook, ex. @adobe/aio-cli@8.2.0q
 let rootCliVersion = '?'
