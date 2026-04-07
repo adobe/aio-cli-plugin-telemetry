@@ -15,13 +15,18 @@ const telemetryLib = require('../src/telemetry-lib')
 const config = require('@adobe/aio-lib-core-config')
 
 jest.mock('@adobe/aio-lib-core-config')
+jest.mock('child_process', () => ({
+  spawn: jest.fn(() => ({ unref: jest.fn() }))
+}))
 
 const fetch = createFetch()
+const { spawn } = require('child_process')
 
 describe('telemetry-lib', () => {
   beforeEach(() => {
     jest.resetModules()
     fetch.mockReset()
+    spawn.mockClear()
   })
 
   test('exports messages', async () => {
@@ -48,18 +53,33 @@ describe('telemetry-lib', () => {
     await telemetryLib.trackEvent('test-event')
     expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.clientId')
     expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.optOut', 'global')
-    expect(fetch).toHaveBeenCalledWith(expect.any(String),
-      expect.objectContaining({ body: expect.stringContaining('"clientId":"clientidxyz"') }))
+    expect(spawn).toHaveBeenCalled()
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.body).toContain('"clientId":"clientidxyz"')
   })
 
   test('trackEvent includes invocation_context and agent_name in payload', async () => {
     config.get.mockReturnValue('clientidxyz')
     telemetryLib.init('a@4', 'binTest')
     await telemetryLib.trackEvent('postrun')
-    const body = JSON.parse(fetch.mock.calls[0][1].body)
-    expect(body._adobeio).toHaveProperty('invocation_context')
-    expect(body._adobeio).toHaveProperty('agent_name')
-    expect(['agent', 'human']).toContain(body._adobeio.invocation_context)
+    expect(spawn).toHaveBeenCalled()
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    const attributes = body[0].metrics[0].attributes
+    expect(attributes).toHaveProperty('invocation_context')
+    expect(attributes).toHaveProperty('agent_name')
+    expect(['agent', 'human']).toContain(attributes.invocation_context)
+  })
+
+  test('trackEvent does not post when AIO_TELEMETRY_DISABLED is set', async () => {
+    const orig = process.env.AIO_TELEMETRY_DISABLED
+    process.env.AIO_TELEMETRY_DISABLED = '1'
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binTest')
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).not.toHaveBeenCalled()
+    if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
+    else delete process.env.AIO_TELEMETRY_DISABLED
   })
 
   test('trackEvent sends agent context when CURSOR_AGENT env is set', async () => {
@@ -68,9 +88,12 @@ describe('telemetry-lib', () => {
     config.get.mockReturnValue('clientidxyz')
     telemetryLib.init('a@4', 'binTest')
     await telemetryLib.trackEvent('postrun')
-    const body = JSON.parse(fetch.mock.calls[0][1].body)
-    expect(body._adobeio.invocation_context).toBe('agent')
-    expect(body._adobeio.agent_name).toBe('cursor')
+    expect(spawn).toHaveBeenCalled()
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    const attributes = body[0].metrics[0].attributes
+    expect(attributes.invocation_context).toBe('agent')
+    expect(attributes.agent_name).toBe('cursor')
     if (orig !== undefined) process.env.CURSOR_AGENT = orig
     else delete process.env.CURSOR_AGENT
   })
@@ -112,6 +135,18 @@ describe('getInvocationContext', () => {
     expect(result).toEqual({ isAgent: false, agentName: null })
   })
 
+  test('returns github-copilot when Copilot Chat PATH markers are present', () => {
+    const result = telemetryLib.getInvocationContext({
+      PATH: '/usr/local/bin:/Users/test/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand:/Users/test/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli'
+    })
+    expect(result).toEqual({ isAgent: true, agentName: 'github-copilot' })
+  })
+
+  test('returns human when PATH does not contain Copilot Chat markers', () => {
+    const result = telemetryLib.getInvocationContext({ PATH: '/usr/local/bin:/usr/bin:/bin' })
+    expect(result).toEqual({ isAgent: false, agentName: null })
+  })
+
   test('AGENT takes precedence over tool-specific when both set', () => {
     const result = telemetryLib.getInvocationContext({ AGENT: 'goose', CURSOR_AGENT: '1' })
     expect(result).toEqual({ isAgent: true, agentName: 'goose' })
@@ -120,5 +155,33 @@ describe('getInvocationContext', () => {
   test('ignores empty string env values', () => {
     const result = telemetryLib.getInvocationContext({ CURSOR_AGENT: '' })
     expect(result).toEqual({ isAgent: false, agentName: null })
+  })
+})
+
+describe('AIO_TELEMETRY_DISABLED', () => {
+  let orig
+
+  beforeEach(() => {
+    orig = process.env.AIO_TELEMETRY_DISABLED
+    process.env.AIO_TELEMETRY_DISABLED = '1'
+    telemetryLib.init('a@4', 'binTest')
+  })
+
+  afterEach(() => {
+    if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
+    else delete process.env.AIO_TELEMETRY_DISABLED
+  })
+
+  test('isEnabled returns false when AIO_TELEMETRY_DISABLED is set', () => {
+    // config.get would return false (opted in), but the env var should override
+    const config = require('@adobe/aio-lib-core-config')
+    config.get.mockReturnValue(false)
+    expect(telemetryLib.isEnabled()).toBe(false)
+  })
+
+  test('isNull returns false when AIO_TELEMETRY_DISABLED is set', () => {
+    const config = require('@adobe/aio-lib-core-config')
+    config.get.mockReturnValue(undefined)
+    expect(telemetryLib.isNull()).toBe(false)
   })
 })
