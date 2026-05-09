@@ -192,12 +192,16 @@ async function trackEvent (eventType, rawEventData = {}) {
       postUrl,
       headers: fetchHeaders
     })
-    const child = spawn(process.execPath, [path.join(__dirname, 'flush-worker.js'), flushPayload], {
-      env: { ...process.env, AIO_TELEMETRY_DISABLED: '1' },
-      detached: true,
-      stdio: 'ignore'
-    })
-    child.unref()
+    try {
+      const child = spawn(process.execPath, [path.join(__dirname, 'flush-worker.js'), flushPayload], {
+        env: { ...process.env, AIO_TELEMETRY_DISABLED: '1' },
+        detached: true,
+        stdio: 'ignore'
+      })
+      child.unref()
+    } catch (err) {
+      debug('Failed to launch telemetry flush worker: %O', err)
+    }
   }
 }
 
