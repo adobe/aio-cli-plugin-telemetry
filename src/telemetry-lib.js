@@ -17,6 +17,9 @@ const config = require('@adobe/aio-lib-core-config')
 const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
+/** Adobe I/O App Builder web action that forwards CLI metrics to New Relic (ingest key stays server-side). */
+const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy-stage.adobeio-static.net/api/v1/web/dx-excshell-1/telemetry'
+
 let isDisabledForCommand = false
 
 /**
@@ -81,11 +84,28 @@ const osNameVersion = `${os.type()} ${os.release()}`
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
 
+/** @type {Record<string, string>} Headers for the telemetry proxy POST (never include New Relic keys). */
 let fetchHeaders = {
-  'Content-Type': 'application/json',
-  'Api-Key': 'd6b73f9c1859dc462e6de8dee3de1eb2FFFFNRAL'
+  'Content-Type': 'application/json'
 }
+/** @type {string} Resolved proxy URL (defaults at module load; init may override). */
+let postUrl = DEFAULT_TELEMETRY_POST_URL
 let configKey = 'aio-cli-telemetry'
+
+/**
+ * Strips New Relic credential header names from a header map (CLI must not send ingest keys).
+ * @param {Record<string, string>|null|undefined} headers - optional header map from package.json aioTelemetry
+ * @returns {Record<string, string>} copy without Api-Key fields
+ */
+function withoutNrKeys (headers) {
+  if (!headers || typeof headers !== 'object') {
+    return {}
+  }
+  const out = { ...headers }
+  delete out['Api-Key']
+  delete out['api-key']
+  return out
+}
 const defaultPrivacyPolicyLink = 'https://developer.adobe.com/app-builder/docs/guides/telemetry/'
 
 /**
@@ -108,16 +128,47 @@ const getOffMessage = (binName) => {
 }
 
 /**
+ * Builds the value stored in the metric `eventData` attribute. For `postrun`, an empty object is
+ * replaced with `{ durationMs }` from `global.prerunTimer` so older CLIs / hooks that omit the
+ * second argument still send timing.
+ *
+ * @param {string} eventType - telemetry event name (e.g. postrun, command-error)
+ * @param {object|string|number|undefined} raw - argument passed to trackEvent
+ * @returns {object|string|number} payload serialized into the metric attribute
+ */
+function resolveEventData (eventType, raw) {
+  if (eventType !== 'postrun') {
+    return raw === undefined ? {} : raw
+  }
+  const empty = raw === undefined || raw === null ||
+    (typeof raw === 'object' && !Array.isArray(raw) && Object.keys(raw).length === 0)
+  if (!empty) {
+    return raw
+  }
+  if (typeof global.prerunTimer === 'number') {
+    return { durationMs: Date.now() - global.prerunTimer }
+  }
+  return {}
+}
+
+/**
  * @description tracks the event
  * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
- * @param {string} eventData additional data, like the error message, or custom telemetry payload
+ * @param {object|string|number|undefined} [rawEventData] Optional hook payload (e.g. `{ message }` on errors).
+ *   Command/flags/duration are also sent as separate metric attributes from prerun/postrun.
  * @returns {undefined}
  */
-async function trackEvent (eventType, eventData = {}) {
+async function trackEvent (eventType, rawEventData = {}) {
   // prerunEvent will be null when telemetry-prompt event fires, this happens before
   // any command is actually run, so we want to ignore the command+flags in this case
 
-  if (isDisabledForCommand || process.env.AIO_TELEMETRY_DISABLED || config.get(`${configKey}.optOut`, 'global') === true) {
+  const eventData = resolveEventData(eventType, rawEventData)
+
+  const optedOut = isDisabledForCommand || process.env.AIO_TELEMETRY_DISABLED || config.get(`${configKey}.optOut`, 'global') === true
+  const willSend = !optedOut
+  debug('trackEvent %s eventData=%j postUrl=%s willSend=%s', eventType, eventData, postUrl, willSend)
+
+  if (optedOut) {
     debug('Telemetry is off. Not logging telemetry event', eventType)
   } else {
     const clientId = getClientId()
@@ -150,7 +201,11 @@ async function trackEvent (eventType, eventData = {}) {
         }]
       }])
     }
-    const flushPayload = JSON.stringify({ body: fetchConfig.body })
+    const flushPayload = JSON.stringify({
+      body: fetchConfig.body,
+      postUrl,
+      headers: fetchHeaders
+    })
     const child = spawn(process.execPath, [path.join(__dirname, 'flush-worker.js'), flushPayload], {
       env: { ...process.env, AIO_TELEMETRY_DISABLED: '1' },
       detached: true,
@@ -174,8 +229,10 @@ module.exports = {
   init: (versionString, binName, remoteConf = {}) => {
     global.commandHookStartTime = Date.now()
     rootCliVersion = versionString
-    if (remoteConf.fetchHeaders) {
-      fetchHeaders = remoteConf.fetchHeaders
+    postUrl = remoteConf.postUrl || process.env.AIO_TELEMETRY_POST_URL || DEFAULT_TELEMETRY_POST_URL
+    fetchHeaders = {
+      'Content-Type': 'application/json',
+      ...withoutNrKeys(remoteConf.fetchHeaders)
     }
     configKey = binName + '-cli-telemetry'
   },
@@ -198,6 +255,8 @@ module.exports = {
   trackEvent,
   trackPrerun,
   // secret api for testing
+  DEFAULT_TELEMETRY_POST_URL,
+  resolveEventData,
   reset: () => {
     config.delete(configKey)
   },

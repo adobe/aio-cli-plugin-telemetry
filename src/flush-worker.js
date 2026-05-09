@@ -13,8 +13,9 @@ governing permissions and limitations under the License.
  * Telemetry flush worker — spawned as a detached subprocess by trackEvent so
  * the parent process can exit immediately without waiting on the HTTP POST.
  *
- * Accepts a single CLI argument: a JSON-encoded object with shape { body: string }
- * where body is a serialised New Relic metric payload (array of metric batches).
+ * Accepts a single CLI argument: a JSON-encoded object with shape
+ * { body: string, postUrl: string, headers?: object } where body is a serialised
+ * New Relic metric payload (array of metric batches) and postUrl is the App Builder proxy.
  *
  * On each run the worker merges any previously-failed events from the persistent
  * queue (src/queue-store.js) with the current event before POSTing. On success
@@ -24,16 +25,15 @@ governing permissions and limitations under the License.
 
 'use strict'
 
+const debug = require('debug')('aio-telemetry:flush-worker')
 const { createFetch } = require('@adobe/aio-lib-core-networking')
 const { readQueue, writeQueue, clearQueue } = require('./queue-store')
 
 const fetch = createFetch()
 
-const POST_URL = 'https://metric-api.newrelic.com/metric/v1'
-const FETCH_HEADERS = {
+const DEFAULT_HEADERS = {
   'Content-Type': 'application/json',
-  // New Relic ingest key — write-only, cannot read data or access any other system.
-  'Api-Key': 'd6b73f9c1859dc462e6de8dee3de1eb2FFFFNRAL'
+  'x-ow-extra-logging': 'on'
 }
 
 /**
@@ -44,8 +44,21 @@ const FETCH_HEADERS = {
 async function main () {
   // Parse the current event payload passed by the parent process.
   let currentMetrics
+  let postUrl
+  let requestHeaders = { ...DEFAULT_HEADERS }
   try {
-    const { body } = JSON.parse(process.argv[2])
+    const parsed = JSON.parse(process.argv[2])
+    const { body, postUrl: url, headers } = parsed
+    if (!url || typeof url !== 'string') {
+      return
+    }
+    postUrl = url
+    if (headers && typeof headers === 'object') {
+      const safe = { ...headers }
+      delete safe['Api-Key']
+      delete safe['api-key']
+      requestHeaders = { ...DEFAULT_HEADERS, ...safe }
+    }
     currentMetrics = JSON.parse(body)[0].metrics
   } catch {
     // Malformed argument — nothing useful to do.
@@ -58,10 +71,11 @@ async function main () {
   const allMetrics = [...queuedMetrics, ...currentMetrics]
 
   try {
-    await fetch(POST_URL, {
+    debug('POST %s requestHeaders=%o', postUrl, requestHeaders)
+    await fetch(postUrl, {
       method: 'POST',
-      headers: FETCH_HEADERS,
-      body: JSON.stringify([{ metrics: allMetrics }])
+      headers: requestHeaders,
+      body: JSON.stringify({ batches: [{ metrics: allMetrics }] })
     })
     // Successful delivery — the queue is no longer needed.
     clearQueue()

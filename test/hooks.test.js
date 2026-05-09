@@ -22,13 +22,13 @@ jest.mock('child_process', () => ({
 
 const fetch = createFetch()
 const { spawn } = require('child_process')
+const telemetryLib = require('../src/telemetry-lib')
 
 const mockPackageJson = {
   bin: { aio: '' },
   name: 'name',
   aioTelemetry: {
-    fetchHeaders: { 'Content-Type': 'application/json' },
-    postUrl: 'https://httpstat.us/200'
+    fetchHeaders: { 'Content-Type': 'application/json' }
   }
 }
 
@@ -36,9 +36,12 @@ describe('hook interfaces', () => {
   beforeEach(() => {
     fetch.mockReset()
     spawn.mockClear()
+    config.get.mockReset()
   })
 
   test('command-error', async () => {
+    config.get.mockImplementation((key) => (String(key).includes('optOut') ? false : 'clientid'))
+    telemetryLib.init('name@0.0.1', 'aio', mockPackageJson.aioTelemetry)
     const hook = require('../src/hooks/command-error')
     expect(typeof hook).toBe('function')
     await hook({ message: 'msg' })
@@ -48,6 +51,8 @@ describe('hook interfaces', () => {
   })
 
   test('command-not-found', async () => {
+    config.get.mockImplementation((key) => (String(key).includes('optOut') ? false : 'clientid'))
+    telemetryLib.init('name@0.0.1', 'aio', mockPackageJson.aioTelemetry)
     const hook = require('../src/hooks/command-not-found')
     expect(typeof hook).toBe('function')
     await hook({ id: 'id' })
@@ -151,7 +156,7 @@ describe('hook interfaces', () => {
     expect(typeof hook).toBe('function')
     inquirer.prompt = jest.fn().mockResolvedValue({ accept: false })
     config.get = jest.fn().mockReturnValue(undefined)
-    await hook({ config: { name: 'name', version: '0.0.1' }, argv: ['--verbose'] })
+    await hook({ config: { name: 'name', version: '0.0.1', pjson: mockPackageJson }, argv: ['--verbose'] })
     expect(inquirer.prompt).toHaveBeenCalled()
     expect(spawn).toHaveBeenCalledTimes(1)
     const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
@@ -161,6 +166,7 @@ describe('hook interfaces', () => {
   })
 
   test('telemetry', async () => {
+    telemetryLib.init('name@0.0.1', 'aio', mockPackageJson.aioTelemetry)
     const hook = require('../src/hooks/telemetry')
     expect(typeof hook).toBe('function')
     config.get = jest
@@ -175,6 +181,8 @@ describe('hook interfaces', () => {
   })
 
   test('postrun', async () => {
+    config.get.mockImplementation((key) => (String(key).includes('optOut') ? false : 'clientid'))
+    telemetryLib.init('name@0.0.1', 'aio', mockPackageJson.aioTelemetry)
     const hook = require('../src/hooks/postrun')
     expect(typeof hook).toBe('function')
     await hook({ Command: { id: 'id' }, argv: ['--hello'] })

@@ -22,8 +22,10 @@ const fetch = createFetch()
 const { readQueue, writeQueue, clearQueue } = require('../src/queue-store')
 const { main } = require('../src/flush-worker')
 
+const PROXY = 'https://telemetry-proxy.example/api/v1/web/dx-excshell-1/telemetry'
 const METRIC = { name: 'aio.cli.telemetry', type: 'gauge', value: 1, timestamp: 1000, attributes: { eventType: 'postrun' } }
 const BODY = JSON.stringify([{ metrics: [METRIC] }])
+const flushArg = (body = BODY) => JSON.stringify({ body, postUrl: PROXY, headers: { 'Content-Type': 'application/json' } })
 
 describe('flush-worker main()', () => {
   let origArgv
@@ -45,19 +47,20 @@ describe('flush-worker main()', () => {
     readQueue.mockReturnValue(queued)
     fetch.mockResolvedValue({ ok: true })
 
-    process.argv = ['node', 'flush-worker.js', JSON.stringify({ body: BODY })]
+    process.argv = ['node', 'flush-worker.js', flushArg()]
     await main()
 
     expect(fetch).toHaveBeenCalledTimes(1)
     const [url, opts] = fetch.mock.calls[0]
-    expect(url).toBe('https://metric-api.newrelic.com/metric/v1')
+    expect(url).toBe(PROXY)
     expect(opts.method).toBe('POST')
-    expect(opts.headers['Api-Key']).toBeTruthy()
+    expect(opts.headers['Content-Type']).toBe('application/json')
+    expect(opts.headers['Api-Key']).toBeUndefined()
 
     const posted = JSON.parse(opts.body)
-    expect(posted[0].metrics).toHaveLength(2)
-    expect(posted[0].metrics[0]).toEqual(queued[0])
-    expect(posted[0].metrics[1]).toEqual(METRIC)
+    expect(posted.batches[0].metrics).toHaveLength(2)
+    expect(posted.batches[0].metrics[0]).toEqual(queued[0])
+    expect(posted.batches[0].metrics[1]).toEqual(METRIC)
 
     expect(clearQueue).toHaveBeenCalledTimes(1)
     expect(writeQueue).not.toHaveBeenCalled()
@@ -67,7 +70,7 @@ describe('flush-worker main()', () => {
     readQueue.mockReturnValue([])
     fetch.mockRejectedValue(new Error('network error'))
 
-    process.argv = ['node', 'flush-worker.js', JSON.stringify({ body: BODY })]
+    process.argv = ['node', 'flush-worker.js', flushArg()]
     await main()
 
     expect(writeQueue).toHaveBeenCalledTimes(1)
@@ -79,12 +82,12 @@ describe('flush-worker main()', () => {
     readQueue.mockReturnValue([])
     fetch.mockResolvedValue({ ok: true })
 
-    process.argv = ['node', 'flush-worker.js', JSON.stringify({ body: BODY })]
+    process.argv = ['node', 'flush-worker.js', flushArg()]
     await main()
 
     const posted = JSON.parse(fetch.mock.calls[0][1].body)
-    expect(posted[0].metrics).toHaveLength(1)
-    expect(posted[0].metrics[0]).toEqual(METRIC)
+    expect(posted.batches[0].metrics).toHaveLength(1)
+    expect(posted.batches[0].metrics[0]).toEqual(METRIC)
     expect(clearQueue).toHaveBeenCalledTimes(1)
   })
 
@@ -100,5 +103,21 @@ describe('flush-worker main()', () => {
     await main()
     expect(fetch).not.toHaveBeenCalled()
     expect(writeQueue).not.toHaveBeenCalled()
+  })
+
+  test('returns silently when postUrl is missing', async () => {
+    process.argv = ['node', 'flush-worker.js', JSON.stringify({ body: BODY })]
+    await main()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  test('uses default headers when headers omitted from payload', async () => {
+    readQueue.mockReturnValue([])
+    fetch.mockResolvedValue({ ok: true })
+    process.argv = ['node', 'flush-worker.js', JSON.stringify({ body: BODY, postUrl: PROXY })]
+    await main()
+    expect(fetch.mock.calls[0][1].headers).toEqual(
+      expect.objectContaining({ 'Content-Type': 'application/json' })
+    )
   })
 })

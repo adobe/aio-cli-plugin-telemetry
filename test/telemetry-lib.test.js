@@ -40,7 +40,7 @@ describe('telemetry-lib', () => {
   test('exports init function', async () => {
     expect(telemetryLib.init).toBeDefined()
     expect(telemetryLib.init).toBeInstanceOf(Function)
-    telemetryLib.init('a@4', 'binTest')
+    telemetryLib.init('a@4', 'binTest', {})
     telemetryLib.enable()
     expect(config.set).toHaveBeenCalledWith('binTest-cli-telemetry.optOut', false)
     telemetryLib.disable()
@@ -49,18 +49,52 @@ describe('telemetry-lib', () => {
 
   test('uses client id from config', async () => {
     config.get.mockReturnValue('clientidxyz')
-    telemetryLib.init('a@4', 'binTest2')
+    telemetryLib.init('a@4', 'binTest2', {})
     await telemetryLib.trackEvent('test-event')
     expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.clientId')
     expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.optOut', 'global')
     expect(spawn).toHaveBeenCalled()
     const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
     expect(flushPayload.body).toContain('"clientId":"clientidxyz"')
+    expect(flushPayload.postUrl).toBe(telemetryLib.DEFAULT_TELEMETRY_POST_URL)
+  })
+
+  test('postrun adds durationMs to eventData when the hook omits payload and prerunTimer is set', async () => {
+    global.prerunTimer = Date.now() - 40
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binDur', {})
+    await telemetryLib.trackEvent('postrun')
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    const ed = JSON.parse(body[0].metrics[0].attributes.eventData)
+    expect(ed.durationMs).toBeGreaterThanOrEqual(35)
+    expect(ed.durationMs).toBeLessThan(60000)
+  })
+
+  test('postrun keeps non-empty eventData as-is', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binKeep', {})
+    await telemetryLib.trackEvent('postrun', { source: 'test' })
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    expect(JSON.parse(body[0].metrics[0].attributes.eventData)).toEqual({ source: 'test' })
+  })
+
+  test('postrun eventData is {} when payload empty and prerunTimer is not a number', async () => {
+    const prev = global.prerunTimer
+    delete global.prerunTimer
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binNoTimer', {})
+    await telemetryLib.trackEvent('postrun')
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    expect(body[0].metrics[0].attributes.eventData).toBe('{}')
+    global.prerunTimer = prev
   })
 
   test('trackEvent includes invocation_context and agent_name in payload', async () => {
     config.get.mockReturnValue('clientidxyz')
-    telemetryLib.init('a@4', 'binTest')
+    telemetryLib.init('a@4', 'binTest', {})
     await telemetryLib.trackEvent('postrun')
     expect(spawn).toHaveBeenCalled()
     const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
@@ -71,11 +105,61 @@ describe('telemetry-lib', () => {
     expect(['agent', 'human']).toContain(attributes.invocation_context)
   })
 
+  test('init uses built-in default postUrl when host omits aioTelemetry.postUrl and env', async () => {
+    const orig = process.env.AIO_TELEMETRY_POST_URL
+    delete process.env.AIO_TELEMETRY_POST_URL
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binDefaultUrl', {})
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalled()
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.postUrl).toBe(telemetryLib.DEFAULT_TELEMETRY_POST_URL)
+    if (orig !== undefined) process.env.AIO_TELEMETRY_POST_URL = orig
+  })
+
+  test('init uses AIO_TELEMETRY_POST_URL when remoteConf.postUrl is omitted', async () => {
+    const orig = process.env.AIO_TELEMETRY_POST_URL
+    process.env.AIO_TELEMETRY_POST_URL = 'https://env.example/ingest'
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binEnv', {})
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalled()
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.postUrl).toBe('https://env.example/ingest')
+    if (orig !== undefined) process.env.AIO_TELEMETRY_POST_URL = orig
+    else delete process.env.AIO_TELEMETRY_POST_URL
+  })
+
+  test('init with two args defaults remoteConf and uses AIO_TELEMETRY_POST_URL', async () => {
+    const orig = process.env.AIO_TELEMETRY_POST_URL
+    process.env.AIO_TELEMETRY_POST_URL = 'https://env-default.example/ingest'
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binTwoArg')
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalled()
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.postUrl).toBe('https://env-default.example/ingest')
+    if (orig !== undefined) process.env.AIO_TELEMETRY_POST_URL = orig
+    else delete process.env.AIO_TELEMETRY_POST_URL
+  })
+
+  test('remoteConf.postUrl takes precedence over AIO_TELEMETRY_POST_URL', async () => {
+    const orig = process.env.AIO_TELEMETRY_POST_URL
+    process.env.AIO_TELEMETRY_POST_URL = 'https://env.example/ingest'
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binPrec', { postUrl: 'https://cli-config.example/proxy' })
+    await telemetryLib.trackEvent('postrun')
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.postUrl).toBe('https://cli-config.example/proxy')
+    if (orig !== undefined) process.env.AIO_TELEMETRY_POST_URL = orig
+    else delete process.env.AIO_TELEMETRY_POST_URL
+  })
+
   test('trackEvent does not post when AIO_TELEMETRY_DISABLED is set', async () => {
     const orig = process.env.AIO_TELEMETRY_DISABLED
     process.env.AIO_TELEMETRY_DISABLED = '1'
     config.get.mockReturnValue('clientidxyz')
-    telemetryLib.init('a@4', 'binTest')
+    telemetryLib.init('a@4', 'binTest', {})
     await telemetryLib.trackEvent('postrun')
     expect(spawn).not.toHaveBeenCalled()
     if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
@@ -86,7 +170,7 @@ describe('telemetry-lib', () => {
     const orig = process.env.CURSOR_AGENT
     process.env.CURSOR_AGENT = '1'
     config.get.mockReturnValue('clientidxyz')
-    telemetryLib.init('a@4', 'binTest')
+    telemetryLib.init('a@4', 'binTest', {})
     await telemetryLib.trackEvent('postrun')
     expect(spawn).toHaveBeenCalled()
     const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
@@ -96,6 +180,12 @@ describe('telemetry-lib', () => {
     expect(attributes.agent_name).toBe('cursor')
     if (orig !== undefined) process.env.CURSOR_AGENT = orig
     else delete process.env.CURSOR_AGENT
+  })
+})
+
+describe('resolveEventData', () => {
+  test('non-postrun with undefined raw yields {}', () => {
+    expect(telemetryLib.resolveEventData('command-error', undefined)).toEqual({})
   })
 })
 
@@ -211,7 +301,7 @@ describe('AIO_TELEMETRY_DISABLED', () => {
   beforeEach(() => {
     orig = process.env.AIO_TELEMETRY_DISABLED
     process.env.AIO_TELEMETRY_DISABLED = '1'
-    telemetryLib.init('a@4', 'binTest')
+    telemetryLib.init('a@4', 'binTest', {})
   })
 
   afterEach(() => {

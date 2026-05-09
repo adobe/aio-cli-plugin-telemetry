@@ -37,16 +37,14 @@ _See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-pl
 <!-- commandsstop -->
 
 ## Configuration
-The following values need to be set when this plugin is hosted by different CLIs
-- `aioTelemetry`: defined object in root cli package.json with values:
-  - `postUrl` : Where to post telemetry data (overrides the default New Relic ingest endpoint)
-  - `fetchHeaders`: Headers to send with the telemetry POST request (overrides the default New Relic ingest headers)
-  - `productPrivacyPolicyLink`: A link to display to users when prompting to optIn
-- `productName`: How to refer to the cli when user is prompted to enable telemetry
-  - this value is read from `displayName` or `name` of the cli's package.json
-- `productBin`: Output in help text
-  - ex. To turn telemetry on run `${productBin} telemetry on`
-  - this value is read from 'bin' of the cli's package.json, if the package exports more than 1 bin the first is used
+
+When this plugin is hosted by different CLIs:
+
+- `aioTelemetry` (optional object in the root `package.json`):
+  - `fetchHeaders`: Optional extra headers merged into telemetry requests (`Content-Type` is always set)
+  - `productPrivacyPolicyLink`: A link to display to users when prompting to opt in
+- `productName`: How to refer to the CLI when the user is prompted to enable telemetry (from `displayName` or `name` in `package.json`)
+- `productBin`: Shown in help text (from `bin` in `package.json`; if several bins exist, the first is used). Example: run `${productBin} telemetry on`
 
 ## Opting out via environment variable
 
@@ -58,7 +56,7 @@ AIO_TELEMETRY_DISABLED=1 aio app deploy
 
 ## Flush architecture
 
-Telemetry events are sent via a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI process spawns the worker and immediately unrefs it, so the CLI exits at its normal time without waiting for the HTTP POST to complete. The worker owns the ingest endpoint and credentials.
+Telemetry events are sent via a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI process spawns the worker and immediately unrefs it, so the CLI can exit without waiting for the HTTP request to finish.
 
 ## Agent detection
 
@@ -86,7 +84,7 @@ To opt into agent tracking without setting a tool-specific variable, set `AIO_IN
 
 ## POST data
 
-Events are posted to the New Relic Metric API. Here is an example of the payload:
+Example shape of the metric payload:
 
 ```json
 [{
