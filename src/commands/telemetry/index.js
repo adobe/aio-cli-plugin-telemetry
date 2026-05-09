@@ -9,7 +9,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { Command, Flags } = require('@oclif/core')
+const { Args, Command, Flags } = require('@oclif/core')
 const telemetryLib = require('../../telemetry-lib')
 
 class IndexCommand extends Command {
@@ -63,11 +63,13 @@ IndexCommand.flags = {
   })
 }
 
-IndexCommand.args = [{
-  name: 'state',
-  required: false,
-  description: 'set telemetry state',
-  options: ['on', 'off', 'yes', 'no']
-}]
+IndexCommand.args = {
+  state: Args.string({
+    required: false,
+    description: 'set telemetry state',
+    options: ['on', 'off', 'yes', 'no'],
+    ignoreStdin: true
+  })
+}
 
 module.exports = IndexCommand
