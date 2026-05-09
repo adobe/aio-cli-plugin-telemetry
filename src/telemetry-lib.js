@@ -80,7 +80,7 @@ function getInvocationContext (env) {
 
 const osNameVersion = `${os.type()} ${os.release()}`
 
-// this is set by the init hook, ex. @adobe/aio-cli@8.2.0q
+// this is set by the init hook, ex. @adobe/aio-cli@8.2.0
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
 
@@ -92,20 +92,6 @@ let fetchHeaders = {
 let postUrl = DEFAULT_TELEMETRY_POST_URL
 let configKey = 'aio-cli-telemetry'
 
-/**
- * Strips New Relic credential header names from a header map (CLI must not send ingest keys).
- * @param {Record<string, string>|null|undefined} headers - optional header map from package.json aioTelemetry
- * @returns {Record<string, string>} copy without Api-Key fields
- */
-function withoutNrKeys (headers) {
-  if (!headers || typeof headers !== 'object') {
-    return {}
-  }
-  const out = { ...headers }
-  delete out['Api-Key']
-  delete out['api-key']
-  return out
-}
 const defaultPrivacyPolicyLink = 'https://developer.adobe.com/app-builder/docs/guides/telemetry/'
 
 /**
@@ -231,8 +217,7 @@ module.exports = {
     rootCliVersion = versionString
     postUrl = remoteConf.postUrl || process.env.AIO_TELEMETRY_POST_URL || DEFAULT_TELEMETRY_POST_URL
     fetchHeaders = {
-      'Content-Type': 'application/json',
-      ...withoutNrKeys(remoteConf.fetchHeaders)
+      'Content-Type': 'application/json'
     }
     configKey = binName + '-cli-telemetry'
   },
