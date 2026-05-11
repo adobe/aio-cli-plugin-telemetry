@@ -31,7 +31,8 @@ const { readQueue, writeQueue, clearQueue } = require('./queue-store')
 const fetch = createFetch()
 
 const DEFAULT_HEADERS = {
-  'Content-Type': 'application/json'
+  'Content-Type': 'application/json',
+  'x-ow-extra-logging': 'on'
 }
 
 /**

@@ -40,11 +40,41 @@ _See code: [src/commands/telemetry/index.js](https://github.com/adobe/aio-cli-pl
 
 When this plugin is hosted by different CLIs:
 
-- `aioTelemetry` (optional object in the root `package.json`):
+- `aioTelemetry` (optional object in the root `package.json` of the **host CLI** — the same `pjson` oclif passes into the init hook):
+  - `postUrl` (optional string): HTTPS URL of the telemetry proxy that receives POSTed metric batches. Use this when your CLI should send telemetry to a different App Builder action or gateway than the plugin default.
   - `fetchHeaders`: Optional extra headers merged into telemetry requests (`Content-Type` is always set)
   - `productPrivacyPolicyLink`: A link to display to users when prompting to opt in
 - `productName`: How to refer to the CLI when the user is prompted to enable telemetry (from `displayName` or `name` in `package.json`)
 - `productBin`: Shown in help text (from `bin` in `package.json`; if several bins exist, the first is used). Example: run `${productBin} telemetry on`
+
+### Overriding the telemetry POST URL
+
+Resolution order (first match wins):
+
+1. **`aioTelemetry.postUrl`** in the host CLI `package.json`
+2. **`AIO_TELEMETRY_POST_URL`** environment variable (non-empty string)
+3. **Built-in default** in the plugin (`DEFAULT_TELEMETRY_POST_URL` in [`src/telemetry-lib.js`](https://github.com/adobe/aio-cli-plugin-telemetry/blob/master/src/telemetry-lib.js))
+
+Host `package.json` example:
+
+```json
+{
+  "name": "my-cli",
+  "bin": { "mycli": "./bin/run.js" },
+  "aioTelemetry": {
+    "postUrl": "https://<namespace>-<project>.adobeio-static.net/api/v1/web/<package>/<action>"
+  }
+}
+```
+
+Environment override (no `package.json` change; useful for CI, staging, or local proxy debugging):
+
+```sh
+export AIO_TELEMETRY_POST_URL='https://<namespace>-<project>.adobeio-static.net/api/v1/web/<package>/<action>'
+mycli app deploy
+```
+
+The resolved URL is passed to the flush worker on **`postrun`**; it applies for the rest of that CLI process after `init` runs.
 
 ## Opting out via environment variable
 
