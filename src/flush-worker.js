@@ -18,9 +18,9 @@ governing permissions and limitations under the License.
  * New Relic metric payload (array of metric batches) and postUrl is the App Builder proxy.
  *
  * On each run the worker merges any previously-failed events from the persistent
- * queue (src/queue-store.js) with the current event before POSTing. On success
- * the queue is cleared; on failure the merged set is written back so the next
- * invocation can retry.
+ * queue (src/queue-store.js) with the current event before POSTing. On HTTP 2xx
+ * the queue is cleared; on network errors or non-2xx responses the merged set
+ * is written back so the next invocation can retry.
  */
 
 'use strict'
@@ -71,15 +71,20 @@ async function main () {
 
   try {
     debug('POST %s requestHeaders=%o', postUrl, requestHeaders)
-    await fetch(postUrl, {
+    const res = await fetch(postUrl, {
       method: 'POST',
       headers: requestHeaders,
       body: JSON.stringify({ batches: [{ metrics: allMetrics }] })
     })
+    // fetch resolves on 4xx/5xx; only 2xx counts as success so we do not drop queued metrics.
+    if (!res?.ok) {
+      const status = res?.status ?? 'unknown'
+      throw new Error(`telemetry flush failed: HTTP ${status}`)
+    }
     // Successful delivery — the queue is no longer needed.
     clearQueue()
   } catch {
-    // Network failure — persist all metrics so the next invocation can retry.
+    // Network or HTTP failure — persist all metrics so the next invocation can retry.
     writeQueue(allMetrics)
   }
 }

@@ -78,6 +78,42 @@ describe('flush-worker main()', () => {
     expect(clearQueue).not.toHaveBeenCalled()
   })
 
+  test('writes merged metrics to queue when fetch resolves with non-ok response', async () => {
+    readQueue.mockReturnValue([])
+    fetch.mockResolvedValue({ ok: false, status: 503 })
+
+    process.argv = ['node', 'flush-worker.js', flushArg()]
+    await main()
+
+    expect(writeQueue).toHaveBeenCalledTimes(1)
+    expect(writeQueue).toHaveBeenCalledWith([METRIC])
+    expect(clearQueue).not.toHaveBeenCalled()
+  })
+
+  test('writes merged metrics to queue when fetch resolves with ok false and no status', async () => {
+    readQueue.mockReturnValue([])
+    fetch.mockResolvedValue({ ok: false })
+
+    process.argv = ['node', 'flush-worker.js', flushArg()]
+    await main()
+
+    expect(writeQueue).toHaveBeenCalledTimes(1)
+    expect(writeQueue).toHaveBeenCalledWith([METRIC])
+    expect(clearQueue).not.toHaveBeenCalled()
+  })
+
+  test('writes merged metrics to queue when fetch resolves with undefined response', async () => {
+    readQueue.mockReturnValue([])
+    fetch.mockResolvedValue(undefined)
+
+    process.argv = ['node', 'flush-worker.js', flushArg()]
+    await main()
+
+    expect(writeQueue).toHaveBeenCalledTimes(1)
+    expect(writeQueue).toHaveBeenCalledWith([METRIC])
+    expect(clearQueue).not.toHaveBeenCalled()
+  })
+
   test('merges empty queue with current event', async () => {
     readQueue.mockReturnValue([])
     fetch.mockResolvedValue({ ok: true })

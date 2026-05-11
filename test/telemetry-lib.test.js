@@ -47,6 +47,15 @@ describe('telemetry-lib', () => {
     expect(config.set).toHaveBeenCalledWith('binTest-cli-telemetry.optOut', true)
   })
 
+  test('trackEvent does not throw when spawn fails while launching flush worker', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binSpawnFail', {})
+    spawn.mockImplementationOnce(() => {
+      throw new Error('spawn EPERM')
+    })
+    await expect(telemetryLib.trackEvent('postrun')).resolves.toBeUndefined()
+  })
+
   test('uses client id from config', async () => {
     config.get.mockReturnValue('clientidxyz')
     telemetryLib.init('a@4', 'binTest2', {})
