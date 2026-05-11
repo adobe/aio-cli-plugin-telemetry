@@ -10,15 +10,17 @@ governing permissions and limitations under the License.
 */
 
 /**
- * Persistent queue store for telemetry events that failed to POST.
+ * Persistent queue store for telemetry metrics pending flush or retry.
  *
  * The queue is kept in a dedicated JSON file that lives alongside the main aio
  * config directory but is completely separate from user-visible aio configuration:
  *
  *   ${XDG_CONFIG_HOME:-~/.config}/aio/.telemetry-queue.json
  *
- * On the next CLI invocation the flush worker picks up any queued events, merges
- * them with the new event, and retries the batch. On success the file is removed.
+ * Metrics recorded before `postrun` are appended here; the flush worker runs on
+ * `postrun`, merges the file with the outgoing postrun batch, POSTs, then clears
+ * the file on success or rewrites it on failure for retry. A prior run may also
+ * leave failed deliveries in this file for the next flush.
  */
 
 'use strict'
@@ -67,6 +69,19 @@ function writeQueue (items) {
 }
 
 /**
+ * Appends metric objects to the end of the queue (read + merge + write).
+ * Silently ignores invalid input or write errors.
+ * @param {Array<object>} newItems Flat array of New Relic metric objects.
+ */
+function appendToQueue (newItems) {
+  if (!Array.isArray(newItems) || newItems.length === 0) {
+    return
+  }
+  const existing = readQueue()
+  writeQueue([...existing, ...newItems])
+}
+
+/**
  * Removes the queue file.
  * Silently ignores errors (e.g. the file does not exist).
  */
@@ -78,4 +93,4 @@ function clearQueue () {
   }
 }
 
-module.exports = { getQueuePath, readQueue, writeQueue, clearQueue }
+module.exports = { getQueuePath, readQueue, writeQueue, appendToQueue, clearQueue }

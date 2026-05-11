@@ -62,6 +62,35 @@ describe('queue-store', () => {
     })
   })
 
+  describe('appendToQueue', () => {
+    test('merges new metrics after existing file contents', () => {
+      const existing = [{ name: 'aio.cli.telemetry', value: 1, attributes: { eventType: 'a' } }]
+      const incoming = [{ name: 'aio.cli.telemetry', value: 1, attributes: { eventType: 'b' } }]
+      fs.readFileSync.mockReturnValue(JSON.stringify(existing))
+      queueStore.appendToQueue(incoming)
+      expect(fs.mkdirSync).toHaveBeenCalledWith(path.dirname(DEFAULT_QUEUE_PATH), { recursive: true })
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        DEFAULT_QUEUE_PATH,
+        JSON.stringify([...existing, ...incoming]),
+        'utf8'
+      )
+    })
+
+    test('writes only new metrics when read fails', () => {
+      fs.readFileSync.mockImplementation(() => { throw new Error('ENOENT') })
+      const incoming = [{ name: 'aio.cli.telemetry', value: 1 }]
+      queueStore.appendToQueue(incoming)
+      expect(fs.writeFileSync).toHaveBeenCalledWith(DEFAULT_QUEUE_PATH, JSON.stringify(incoming), 'utf8')
+    })
+
+    test('no-op when newItems is empty or not an array', () => {
+      fs.readFileSync.mockReturnValue('[]')
+      queueStore.appendToQueue([])
+      queueStore.appendToQueue(null)
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
+    })
+  })
+
   describe('writeQueue', () => {
     test('creates directory and writes items as JSON', () => {
       const items = [{ name: 'aio.cli.telemetry', value: 1 }]

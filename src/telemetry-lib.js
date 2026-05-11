@@ -13,6 +13,7 @@ const { spawn } = require('child_process')
 const path = require('path')
 const os = require('os')
 const config = require('@adobe/aio-lib-core-config')
+const queueStore = require('./queue-store')
 
 const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
@@ -145,8 +146,7 @@ function resolveEventData (eventType, raw) {
  * @returns {undefined}
  */
 async function trackEvent (eventType, rawEventData = {}) {
-  // prerunEvent will be null when telemetry-prompt event fires, this happens before
-  // any command is actually run, so we want to ignore the command+flags in this case
+  // prerunEvent is minimal before prerun; telemetry-prompt and similar fire before a command runs.
 
   const eventData = resolveEventData(eventType, rawEventData)
 
@@ -187,6 +187,14 @@ async function trackEvent (eventType, rawEventData = {}) {
         }]
       }])
     }
+    const metrics = JSON.parse(fetchConfig.body)[0].metrics
+
+    if (eventType !== 'postrun') {
+      // Queue until postrun so only one detached flush worker runs per command (avoids concurrent merges).
+      queueStore.appendToQueue(metrics)
+      return
+    }
+
     const flushPayload = JSON.stringify({
       body: fetchConfig.body,
       postUrl,

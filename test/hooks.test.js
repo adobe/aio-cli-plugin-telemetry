@@ -22,6 +22,7 @@ jest.mock('child_process', () => ({
 
 const fetch = createFetch()
 const { spawn } = require('child_process')
+const queueStore = require('../src/queue-store')
 const telemetryLib = require('../src/telemetry-lib')
 
 const mockPackageJson = {
@@ -33,10 +34,19 @@ const mockPackageJson = {
 }
 
 describe('hook interfaces', () => {
+  beforeAll(() => {
+    jest.spyOn(queueStore, 'appendToQueue').mockImplementation(() => {})
+  })
+
+  afterAll(() => {
+    queueStore.appendToQueue.mockRestore()
+  })
+
   beforeEach(() => {
     fetch.mockReset()
     spawn.mockClear()
     config.get.mockReset()
+    queueStore.appendToQueue.mockClear()
   })
 
   test('command-error', async () => {
@@ -45,9 +55,9 @@ describe('hook interfaces', () => {
     const hook = require('../src/hooks/command-error')
     expect(typeof hook).toBe('function')
     await hook({ message: 'msg' })
-    expect(spawn).toHaveBeenCalledTimes(1)
-    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
-    expect(flushPayload.body).toContain('"eventType":"command-error"')
+    expect(spawn).not.toHaveBeenCalled()
+    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"command-error"')
   })
 
   test('command-not-found', async () => {
@@ -56,9 +66,9 @@ describe('hook interfaces', () => {
     const hook = require('../src/hooks/command-not-found')
     expect(typeof hook).toBe('function')
     await hook({ id: 'id' })
-    expect(spawn).toHaveBeenCalledTimes(1)
-    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
-    expect(flushPayload.body).toContain('"eventType":"command-not-found"')
+    expect(spawn).not.toHaveBeenCalled()
+    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"command-not-found"')
   })
 
   /**
@@ -74,10 +84,10 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ config: { name: 'name', version: '0.0.1', pjson: mockPackageJson }, argv: [] })
     expect(inquirer.prompt).toHaveBeenCalled()
-    expect(spawn).toHaveBeenCalledTimes(1)
-    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
-    expect(flushPayload.body).toContain('"eventType":"telemetry-prompt"')
-    expect(flushPayload.body).toContain('accepted')
+    expect(spawn).not.toHaveBeenCalled()
+    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"telemetry-prompt"')
+    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('accepted')
     process.env = preEnv
   })
 
@@ -158,10 +168,10 @@ describe('hook interfaces', () => {
     config.get = jest.fn().mockReturnValue(undefined)
     await hook({ config: { name: 'name', version: '0.0.1', pjson: mockPackageJson }, argv: ['--verbose'] })
     expect(inquirer.prompt).toHaveBeenCalled()
-    expect(spawn).toHaveBeenCalledTimes(1)
-    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
-    expect(flushPayload.body).toContain('"eventType":"telemetry-prompt"')
-    expect(flushPayload.body).toContain('declined')
+    expect(spawn).not.toHaveBeenCalled()
+    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"telemetry-prompt"')
+    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('declined')
     process.env = preEnv
   })
 
@@ -174,10 +184,10 @@ describe('hook interfaces', () => {
       .mockReturnValueOnce('clientid')
       .mockReturnValueOnce(false)
 
-    await hook({ message: 'msg' })
-    expect(spawn).toHaveBeenCalledTimes(1)
-    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
-    expect(flushPayload.body).toContain('"eventType":"telemetry-custom-event"')
+    await hook({ data: { feature: 'x' } })
+    expect(spawn).not.toHaveBeenCalled()
+    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"telemetry-custom-event"')
   })
 
   test('postrun', async () => {

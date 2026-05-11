@@ -10,17 +10,16 @@ governing permissions and limitations under the License.
 */
 
 /**
- * Telemetry flush worker — spawned as a detached subprocess by trackEvent so
+ * Telemetry flush worker — spawned as a detached subprocess on `postrun` only so
  * the parent process can exit immediately without waiting on the HTTP POST.
  *
  * Accepts a single CLI argument: a JSON-encoded object with shape
  * { body: string, postUrl: string, headers?: object } where body is a serialised
  * New Relic metric payload (array of metric batches) and postUrl is the App Builder proxy.
  *
- * On each run the worker merges any previously-failed events from the persistent
- * queue (src/queue-store.js) with the current event before POSTing. On HTTP 2xx
- * the queue is cleared; on network errors or non-2xx responses the merged set
- * is written back so the next invocation can retry.
+ * The worker merges metrics from the persistent queue (written before postrun by
+ * trackEvent) with the postrun batch, POSTs, then on HTTP 2xx clears the queue;
+ * on network errors or non-2xx responses the merged set is written back for retry.
  */
 
 'use strict'
