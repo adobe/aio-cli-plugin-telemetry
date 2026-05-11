@@ -198,6 +198,16 @@ describe('telemetry-lib', () => {
     else delete process.env.AIO_TELEMETRY_DISABLED
   })
 
+  test('string eventData is stored without extra JSON quotes when queueing', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binStrEd', {})
+    await telemetryLib.trackEvent('telemetry-prompt', 'accepted')
+    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
+    const metric = queueStore.appendToQueue.mock.calls[0][0][0]
+    expect(metric.attributes.eventData).toBe('accepted')
+    expect(metric.attributes.eventData).not.toMatch(/^"/)
+  })
+
   test('trackEvent sends agent context when CURSOR_AGENT env is set', async () => {
     const orig = process.env.CURSOR_AGENT
     process.env.CURSOR_AGENT = '1'
@@ -218,6 +228,40 @@ describe('telemetry-lib', () => {
 describe('resolveEventData', () => {
   test('non-postrun with undefined raw yields {}', () => {
     expect(telemetryLib.resolveEventData('command-error', undefined)).toEqual({})
+  })
+})
+
+describe('formatEventDataAttribute', () => {
+  test('string is returned as-is', () => {
+    expect(telemetryLib.formatEventDataAttribute('accepted')).toBe('accepted')
+    expect(telemetryLib.formatEventDataAttribute('')).toBe('')
+  })
+
+  test('object and array use JSON.stringify', () => {
+    expect(telemetryLib.formatEventDataAttribute({ a: 1 })).toBe('{"a":1}')
+    expect(telemetryLib.formatEventDataAttribute([1, 2])).toBe('[1,2]')
+    expect(telemetryLib.formatEventDataAttribute({})).toBe('{}')
+  })
+
+  test('number and boolean use String()', () => {
+    expect(telemetryLib.formatEventDataAttribute(0)).toBe('0')
+    expect(telemetryLib.formatEventDataAttribute(false)).toBe('false')
+  })
+
+  test('bigint uses String()', () => {
+    expect(telemetryLib.formatEventDataAttribute(42n)).toBe('42')
+  })
+
+  test('symbol falls through to String()', () => {
+    expect(telemetryLib.formatEventDataAttribute(Symbol('s'))).toBe('Symbol(s)')
+  })
+
+  test('undefined yields {}', () => {
+    expect(telemetryLib.formatEventDataAttribute(undefined)).toBe('{}')
+  })
+
+  test('null yields JSON null token', () => {
+    expect(telemetryLib.formatEventDataAttribute(null)).toBe('null')
   })
 })
 

@@ -114,6 +114,8 @@ To opt into agent tracking without setting a tool-specific variable, set `AIO_IN
 
 ## POST data
 
+The `eventData` attribute is always a string. Objects and arrays are stored as a JSON text (e.g. `"{}"`, `"{\"message\":\"…\"}"`). String payloads (such as telemetry prompt outcomes `accepted` / `declined`) are stored as that plain text without an extra layer of JSON quoting. Numbers and booleans use their usual string forms (`"0"`, `"false"`).
+
 Example shape of the metric payload:
 
 ```json

@@ -139,6 +139,30 @@ function resolveEventData (eventType, raw) {
 }
 
 /**
+ * Serializes `eventData` for the metric `eventData` attribute (a string on the wire).
+ * Objects and arrays use `JSON.stringify`; string primitives are not double-encoded
+ * (so e.g. telemetry-prompt `"accepted"` stays `accepted`, not `"\"accepted\""`).
+ *
+ * @param {object|string|number|boolean|undefined|null} eventData - resolved payload from {@link resolveEventData}
+ * @returns {string} Serialized value for the metric `eventData` attribute (JSON for objects/arrays; plain text for strings).
+ */
+function formatEventDataAttribute (eventData) {
+  if (eventData === undefined) {
+    return '{}'
+  }
+  if (typeof eventData === 'string') {
+    return eventData
+  }
+  if (['number', 'boolean', 'bigint'].includes(typeof eventData)) {
+    return String(eventData)
+  }
+  if (typeof eventData === 'object') {
+    return JSON.stringify(eventData)
+  }
+  return String(eventData)
+}
+
+/**
  * @description tracks the event
  * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
  * @param {object|string|number|undefined} [rawEventData] Optional hook payload (e.g. `{ message }` on errors).
@@ -172,7 +196,7 @@ async function trackEvent (eventType, rawEventData = {}) {
           timestamp,
           attributes: {
             eventType,
-            eventData: JSON.stringify(eventData),
+            eventData: formatEventDataAttribute(eventData),
             cliVersion: rootCliVersion,
             clientId,
             command: prerunEvent.command,
@@ -254,6 +278,7 @@ module.exports = {
   // secret api for testing
   DEFAULT_TELEMETRY_POST_URL,
   resolveEventData,
+  formatEventDataAttribute,
   reset: () => {
     config.delete(configKey)
   },
