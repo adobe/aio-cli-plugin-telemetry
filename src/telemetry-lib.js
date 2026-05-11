@@ -26,10 +26,11 @@ let isDisabledForCommand = false
 /**
  * Detects GitHub Copilot Chat command shims injected into PATH.
  *
- * @param {string} pathValue - PATH environment variable value.
+ * @param {string|null|undefined} [pathValue] - PATH environment variable value.
  * @returns {string|null} Agent name when detected, otherwise null.
  */
 function detectCopilotAgent (pathValue) {
+  if (!pathValue) return null
   if (pathValue.includes('github.copilot-chat/debugCommand') || pathValue.includes('github.copilot-chat/copilotCli')) {
     return 'github-copilot'
   }

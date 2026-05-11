@@ -313,6 +313,11 @@ describe('getInvocationContext', () => {
     expect(result).toEqual({ isAgent: false, agentName: null })
   })
 
+  test('returns human when PATH is null or undefined', () => {
+    expect(telemetryLib.getInvocationContext({ PATH: null })).toEqual({ isAgent: false, agentName: null })
+    expect(telemetryLib.getInvocationContext({ PATH: undefined })).toEqual({ isAgent: false, agentName: null })
+  })
+
   test('AGENT takes precedence over tool-specific when both set', () => {
     const result = telemetryLib.getInvocationContext({ AGENT: 'goose', CURSOR_AGENT: '1' })
     expect(result).toEqual({ isAgent: true, agentName: 'goose' })
