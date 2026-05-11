@@ -53,9 +53,9 @@ async function main () {
     }
     postUrl = url
     if (headers && typeof headers === 'object') {
-      const safe = { ...headers }
-      delete safe['Api-Key']
-      delete safe['api-key']
+      const safe = Object.fromEntries(
+        Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'api-key')
+      )
       requestHeaders = { ...DEFAULT_HEADERS, ...safe }
     }
     currentMetrics = JSON.parse(body)[0].metrics
