@@ -327,6 +327,13 @@ describe('getInvocationContext', () => {
     expect(result).toEqual({ isAgent: true, agentName: 'github-copilot' })
   })
 
+  test('returns github-copilot when PATH uses Windows separators', () => {
+    const result = telemetryLib.getInvocationContext({
+      PATH: 'C:\\Program Files\\Git\\cmd;C:\\Users\\test\\AppData\\Roaming\\Code\\User\\globalStorage\\github.copilot-chat\\debugCommand'
+    })
+    expect(result).toEqual({ isAgent: true, agentName: 'github-copilot' })
+  })
+
   test('returns human when PATH does not contain Copilot Chat markers', () => {
     const result = telemetryLib.getInvocationContext({ PATH: '/usr/local/bin:/usr/bin:/bin' })
     expect(result).toEqual({ isAgent: false, agentName: null })

@@ -24,14 +24,15 @@ const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy-stage.ado
 let isDisabledForCommand = false
 
 /**
- * Detects GitHub Copilot Chat command shims injected into PATH.
+ * Detects GitHub Copilot Chat on PATH via the extension id in globalStorage paths (any OS path separator).
  *
  * @param {string|null|undefined} [pathValue] - PATH environment variable value.
  * @returns {string|null} Agent name when detected, otherwise null.
  */
 function detectCopilotAgent (pathValue) {
   if (!pathValue) return null
-  if (pathValue.includes('github.copilot-chat/debugCommand') || pathValue.includes('github.copilot-chat/copilotCli')) {
+  // Extension id appears in globalStorage paths on all platforms; do not tie to '/' (Windows uses '\').
+  if (pathValue.includes('github.copilot-chat')) {
     return 'github-copilot'
   }
   return null
