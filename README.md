@@ -78,7 +78,11 @@ The resolved URL is passed to the flush worker on **`postrun`**; it applies for 
 
 ## Opting out via environment variable
 
-Set `AIO_TELEMETRY_DISABLED=1` (or any truthy value) to suppress all telemetry without modifying the persisted opt-in state. Useful for CI pipelines and scripted environments.
+Telemetry is suppressed when `AIO_TELEMETRY_DISABLED` is **set** to a **non-empty** string. The plugin checks `process.env.AIO_TELEMETRY_DISABLED` as a JavaScript value: unset or `''` does not disable; any other string is truthy and disables telemetry.
+
+Because environment variables are always strings in Node.js, this is **not** boolean parsing: `AIO_TELEMETRY_DISABLED=0`, `=false`, or `=no` still disable telemetry (the values are the strings `"0"`, `"false"`, `"no"`, all of which are truthy). To run with telemetry allowed, **unset** the variable (or use an empty value if your environment exposes `''`).
+
+This does not change the persisted opt-in state. Useful for CI pipelines and scripted environments.
 
 ```sh
 AIO_TELEMETRY_DISABLED=1 aio app deploy
@@ -87,6 +91,8 @@ AIO_TELEMETRY_DISABLED=1 aio app deploy
 ## Flush architecture
 
 Telemetry events are sent via a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI process spawns the worker and immediately unrefs it, so the CLI can exit without waiting for the HTTP request to finish.
+
+Events queued on disk before `postrun` use `src/queue-store.js` (see that file for the path). The queue keeps at most **1000** metric objects; if the proxy stays down and the queue would grow past that, the oldest entries are dropped so the JSON file cannot grow without bound.
 
 ## Agent detection
 
