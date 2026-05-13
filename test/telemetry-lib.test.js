@@ -208,6 +208,25 @@ describe('telemetry-lib', () => {
     expect(metric.attributes.eventData).not.toMatch(/^"/)
   })
 
+  test('postrun flush payload omits headers when host has no aioTelemetry.fetchHeaders', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binNoFlushHdr', {})
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalled()
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.headers).toBeUndefined()
+  })
+
+  test('postrun flush payload passes only aioTelemetry.fetchHeaders as worker overrides', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binFlushHdr', {
+      fetchHeaders: { 'x-correlation-id': 'abc', 'api-key': 'nope' }
+    })
+    await telemetryLib.trackEvent('postrun')
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.headers).toEqual({ 'x-correlation-id': 'abc' })
+  })
+
   test('trackEvent sends agent context when CURSOR_AGENT env is set', async () => {
     const orig = process.env.CURSOR_AGENT
     process.env.CURSOR_AGENT = '1'

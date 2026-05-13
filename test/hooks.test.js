@@ -28,9 +28,7 @@ const telemetryLib = require('../src/telemetry-lib')
 const mockPackageJson = {
   bin: { aio: '' },
   name: 'name',
-  aioTelemetry: {
-    fetchHeaders: { 'Content-Type': 'application/json' }
-  }
+  aioTelemetry: {}
 }
 
 describe('hook interfaces', () => {
@@ -198,6 +196,7 @@ describe('hook interfaces', () => {
     await hook({ Command: { id: 'id' }, argv: ['--hello'] })
     expect(spawn).toHaveBeenCalledTimes(1)
     const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    expect(flushPayload.headers).toBeUndefined()
     expect(flushPayload.body).toContain('"eventType":"postrun"')
   })
 

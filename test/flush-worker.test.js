@@ -25,7 +25,13 @@ const { main } = require('../src/flush-worker')
 const PROXY = 'https://telemetry-proxy.example/api/v1/web/dx-excshell-1/telemetry'
 const METRIC = { name: 'aio.cli.telemetry', type: 'gauge', value: 1, timestamp: 1000, attributes: { eventType: 'postrun' } }
 const BODY = JSON.stringify([{ metrics: [METRIC] }])
-const flushArg = (body = BODY) => JSON.stringify({ body, postUrl: PROXY, headers: { 'Content-Type': 'application/json' } })
+const flushArg = (body = BODY, extraHeaders) => {
+  const base = { body, postUrl: PROXY }
+  if (extraHeaders !== undefined) {
+    base.headers = extraHeaders
+  }
+  return JSON.stringify(base)
+}
 
 describe('flush-worker main()', () => {
   let origArgv
@@ -125,6 +131,19 @@ describe('flush-worker main()', () => {
     expect(posted.batches[0].metrics).toHaveLength(1)
     expect(posted.batches[0].metrics[0]).toEqual(METRIC)
     expect(clearQueue).toHaveBeenCalledTimes(1)
+  })
+
+  test('merges optional payload headers as overrides after defaults', async () => {
+    readQueue.mockReturnValue([])
+    fetch.mockResolvedValue({ ok: true })
+    process.argv = ['node', 'flush-worker.js', flushArg(BODY, { 'X-Custom-Proxy': 'unit-test' })]
+    await main()
+    expect(fetch.mock.calls[0][1].headers).toEqual(
+      expect.objectContaining({
+        'Content-Type': 'application/json',
+        'X-Custom-Proxy': 'unit-test'
+      })
+    )
   })
 
   test('returns silently when argv[2] is missing', async () => {

@@ -86,10 +86,15 @@ const osNameVersion = `${os.type()} ${os.release()}`
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
 
-/** @type {Record<string, string>} Headers for the telemetry proxy POST (never include New Relic keys). */
-let fetchHeaders = {
+/** Built-in request headers; the flush worker subprocess applies the same defaults for its POST. */
+const DEFAULT_FETCH_HEADERS = {
   'Content-Type': 'application/json'
 }
+
+/** @type {Record<string, string>} Full headers for in-process use (defaults + extras from host config). */
+let fetchHeaders = { ...DEFAULT_FETCH_HEADERS }
+/** @type {Record<string, string>} Host-only headers from `aioTelemetry.fetchHeaders` (passed to flush worker as overrides, not defaults). */
+let extraFetchHeaders = {}
 /** @type {string} Resolved proxy URL (defaults at module load; init may override). */
 let postUrl = DEFAULT_TELEMETRY_POST_URL
 let configKey = 'aio-cli-telemetry'
@@ -223,7 +228,7 @@ async function trackEvent (eventType, rawEventData = {}) {
     const flushPayload = JSON.stringify({
       body: fetchConfig.body,
       postUrl,
-      headers: fetchHeaders
+      ...(Object.keys(extraFetchHeaders).length > 0 && { headers: { ...extraFetchHeaders } })
     })
     try {
       const child = spawn(process.execPath, [path.join(__dirname, 'flush-worker.js'), flushPayload], {
@@ -253,9 +258,13 @@ module.exports = {
     global.commandHookStartTime = Date.now()
     rootCliVersion = versionString
     postUrl = remoteConf.postUrl || process.env.AIO_TELEMETRY_POST_URL || DEFAULT_TELEMETRY_POST_URL
-    fetchHeaders = {
-      'Content-Type': 'application/json'
-    }
+    const rawExtra = remoteConf.fetchHeaders && typeof remoteConf.fetchHeaders === 'object'
+      ? remoteConf.fetchHeaders
+      : {}
+    extraFetchHeaders = Object.fromEntries(
+      Object.entries(rawExtra).filter(([key]) => key.toLowerCase() !== 'api-key')
+    )
+    fetchHeaders = { ...DEFAULT_FETCH_HEADERS, ...extraFetchHeaders }
     configKey = binName + '-cli-telemetry'
   },
   getClientId,

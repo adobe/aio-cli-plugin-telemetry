@@ -60,6 +60,31 @@ describe('queue-store', () => {
       fs.readFileSync.mockReturnValue(JSON.stringify({ foo: 'bar' }))
       expect(queueStore.readQueue()).toEqual([])
     })
+
+    test('truncates oversized file to MAX_QUEUE_METRICS and rewrites disk', () => {
+      const oversized = Array.from({ length: queueStore.MAX_QUEUE_METRICS + 5 }, (_, i) => ({ i }))
+      fs.readFileSync.mockReturnValue(JSON.stringify(oversized))
+      const result = queueStore.readQueue()
+      expect(result).toHaveLength(queueStore.MAX_QUEUE_METRICS)
+      expect(result[0].i).toBe(5)
+      expect(result[queueStore.MAX_QUEUE_METRICS - 1].i).toBe(queueStore.MAX_QUEUE_METRICS + 4)
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        DEFAULT_QUEUE_PATH,
+        JSON.stringify(result),
+        'utf8'
+      )
+    })
+
+    test('returns truncated queue when shrink rewrite fails', () => {
+      const oversized = Array.from({ length: queueStore.MAX_QUEUE_METRICS + 3 }, (_, i) => ({ i }))
+      fs.readFileSync.mockReturnValue(JSON.stringify(oversized))
+      fs.writeFileSync.mockImplementation(() => {
+        throw new Error('EACCES')
+      })
+      const result = queueStore.readQueue()
+      expect(result).toHaveLength(queueStore.MAX_QUEUE_METRICS)
+      expect(result[0].i).toBe(3)
+    })
   })
 
   describe('appendToQueue', () => {
@@ -74,6 +99,17 @@ describe('queue-store', () => {
         JSON.stringify([...existing, ...incoming]),
         'utf8'
       )
+    })
+
+    test('truncates when merged queue would exceed MAX_QUEUE_METRICS', () => {
+      const existing = Array.from({ length: queueStore.MAX_QUEUE_METRICS }, (_, i) => ({ tag: 'e', i }))
+      const incoming = [{ tag: 'n', x: 1 }, { tag: 'n', x: 2 }]
+      fs.readFileSync.mockReturnValue(JSON.stringify(existing))
+      queueStore.appendToQueue(incoming)
+      const written = JSON.parse(fs.writeFileSync.mock.calls[0][1])
+      expect(written).toHaveLength(queueStore.MAX_QUEUE_METRICS)
+      expect(written[queueStore.MAX_QUEUE_METRICS - 2]).toEqual(incoming[0])
+      expect(written[queueStore.MAX_QUEUE_METRICS - 1]).toEqual(incoming[1])
     })
 
     test('writes only new metrics when read fails', () => {
@@ -97,6 +133,22 @@ describe('queue-store', () => {
       queueStore.writeQueue(items)
       expect(fs.mkdirSync).toHaveBeenCalledWith(path.dirname(DEFAULT_QUEUE_PATH), { recursive: true })
       expect(fs.writeFileSync).toHaveBeenCalledWith(DEFAULT_QUEUE_PATH, JSON.stringify(items), 'utf8')
+    })
+
+    test('writeQueue keeps at most MAX_QUEUE_METRICS entries (newest)', () => {
+      const items = Array.from({ length: queueStore.MAX_QUEUE_METRICS + 42 }, (_, i) => ({ i }))
+      const expected = items.slice(-queueStore.MAX_QUEUE_METRICS)
+      queueStore.writeQueue(items)
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        DEFAULT_QUEUE_PATH,
+        JSON.stringify(expected),
+        'utf8'
+      )
+    })
+
+    test('writeQueue persists empty array when items is not an array', () => {
+      queueStore.writeQueue(null)
+      expect(fs.writeFileSync).toHaveBeenCalledWith(DEFAULT_QUEUE_PATH, JSON.stringify([]), 'utf8')
     })
 
     test('silently ignores write errors', () => {

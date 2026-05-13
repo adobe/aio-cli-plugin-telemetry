@@ -21,6 +21,9 @@ governing permissions and limitations under the License.
  * `postrun`, merges the file with the outgoing postrun batch, POSTs, then clears
  * the file on success or rewrites it on failure for retry. A prior run may also
  * leave failed deliveries in this file for the next flush.
+ *
+ * Stored metrics are capped at `MAX_QUEUE_METRICS`; older entries are dropped when
+ * the limit is exceeded so an unreachable proxy cannot grow the file without bound.
  */
 
 'use strict'
@@ -28,6 +31,24 @@ governing permissions and limitations under the License.
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+
+/** Maximum metric objects in the queue file; oldest are evicted when exceeded. */
+const MAX_QUEUE_METRICS = 1000
+
+/**
+ * Truncates a metrics array to {@link MAX_QUEUE_METRICS} entries (keeps the newest).
+ * @param {unknown} items candidate queue contents (typically an array from JSON)
+ * @returns {Array<object>} sanitized array safe to persist
+ */
+function normalizeQueueItems (items) {
+  if (!Array.isArray(items)) {
+    return []
+  }
+  if (items.length <= MAX_QUEUE_METRICS) {
+    return items
+  }
+  return items.slice(-MAX_QUEUE_METRICS)
+}
 
 /**
  * Resolves the absolute path to the queue file, honouring XDG_CONFIG_HOME when set.
@@ -44,10 +65,23 @@ function getQueuePath () {
  * @returns {Array<object>} Flat array of New Relic metric objects.
  */
 function readQueue () {
+  const file = getQueuePath()
   try {
-    const data = fs.readFileSync(getQueuePath(), 'utf8')
+    const data = fs.readFileSync(file, 'utf8')
     const parsed = JSON.parse(data)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    const normalized = normalizeQueueItems(parsed)
+    if (parsed.length > normalized.length) {
+      try {
+        fs.mkdirSync(path.dirname(file), { recursive: true })
+        fs.writeFileSync(file, JSON.stringify(normalized), 'utf8')
+      } catch {
+        // same as writeQueue — never throw from telemetry persistence
+      }
+    }
+    return normalized
   } catch {
     return []
   }
@@ -60,9 +94,10 @@ function readQueue () {
  */
 function writeQueue (items) {
   const file = getQueuePath()
+  const toWrite = normalizeQueueItems(items)
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, JSON.stringify(items), 'utf8')
+    fs.writeFileSync(file, JSON.stringify(toWrite), 'utf8')
   } catch {
     // silently ignore — failing to persist the queue must not affect the CLI
   }
@@ -93,4 +128,11 @@ function clearQueue () {
   }
 }
 
-module.exports = { getQueuePath, readQueue, writeQueue, appendToQueue, clearQueue }
+module.exports = {
+  getQueuePath,
+  readQueue,
+  writeQueue,
+  appendToQueue,
+  clearQueue,
+  MAX_QUEUE_METRICS
+}

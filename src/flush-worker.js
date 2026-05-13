@@ -15,7 +15,9 @@ governing permissions and limitations under the License.
  *
  * Accepts a single CLI argument: a JSON-encoded object with shape
  * { body: string, postUrl: string, headers?: object } where body is a serialised
- * New Relic metric payload (array of metric batches) and postUrl is the App Builder proxy.
+ * New Relic metric payload (array of metric batches), postUrl is the App Builder proxy,
+ * and headers (when present) are optional overrides merged after the worker defaults
+ * (never pass secrets such as api-key).
  *
  * The worker merges metrics from the persistent queue (written before postrun by
  * trackEvent) with the postrun batch, POSTs, then on HTTP 2xx clears the queue;
@@ -31,8 +33,7 @@ const { readQueue, writeQueue, clearQueue } = require('./queue-store')
 const fetch = createFetch()
 
 const DEFAULT_HEADERS = {
-  'Content-Type': 'application/json',
-  'x-ow-extra-logging': 'on'
+  'Content-Type': 'application/json'
 }
 
 /**
