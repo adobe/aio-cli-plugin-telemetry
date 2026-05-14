@@ -166,27 +166,51 @@ describe('telemetry-lib', () => {
     else delete process.env.AIO_TELEMETRY_POST_URL
   })
 
-  test('trackEvent does not post when AIO_TELEMETRY_DISABLED is set', async () => {
-    const orig = process.env.AIO_TELEMETRY_DISABLED
-    process.env.AIO_TELEMETRY_DISABLED = '1'
-    config.get.mockReturnValue('clientidxyz')
-    telemetryLib.init('a@4', 'binTest', {})
-    await telemetryLib.trackEvent('postrun')
-    expect(spawn).not.toHaveBeenCalled()
-    if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
-    else delete process.env.AIO_TELEMETRY_DISABLED
-  })
+  test.each(['true', '1', 'yes'])(
+    'trackEvent does not post when AIO_TELEMETRY_DISABLED is %s',
+    async (value) => {
+      const orig = process.env.AIO_TELEMETRY_DISABLED
+      process.env.AIO_TELEMETRY_DISABLED = value
+      config.get.mockReturnValue('clientidxyz')
+      telemetryLib.init('a@4', 'binTest', {})
+      await telemetryLib.trackEvent('postrun')
+      expect(spawn).not.toHaveBeenCalled()
+      if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
+      else delete process.env.AIO_TELEMETRY_DISABLED
+    }
+  )
 
-  test('trackEvent does not flush when AIO_TELEMETRY_DISABLED is set for non-postrun', async () => {
-    const orig = process.env.AIO_TELEMETRY_DISABLED
-    process.env.AIO_TELEMETRY_DISABLED = '1'
-    config.get.mockReturnValue('clientidxyz')
-    telemetryLib.init('a@4', 'binNoQueue', {})
-    await telemetryLib.trackEvent('command-error', { message: 'x' })
-    expect(spawn).not.toHaveBeenCalled()
-    if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
-    else delete process.env.AIO_TELEMETRY_DISABLED
-  })
+  test.each(['0', 'false', 'no', ''])(
+    'trackEvent posts when AIO_TELEMETRY_DISABLED is %j',
+    async (value) => {
+      const orig = process.env.AIO_TELEMETRY_DISABLED
+      if (value === '') {
+        delete process.env.AIO_TELEMETRY_DISABLED
+      } else {
+        process.env.AIO_TELEMETRY_DISABLED = value
+      }
+      config.get.mockReturnValue('clientidxyz')
+      telemetryLib.init('a@4', 'binEnvNotDisabled', {})
+      await telemetryLib.trackEvent('postrun')
+      expect(spawn).toHaveBeenCalled()
+      if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
+      else delete process.env.AIO_TELEMETRY_DISABLED
+    }
+  )
+
+  test.each(['true', '1', 'yes'])(
+    'trackEvent does not buffer when AIO_TELEMETRY_DISABLED is %s for non-postrun',
+    async (value) => {
+      const orig = process.env.AIO_TELEMETRY_DISABLED
+      process.env.AIO_TELEMETRY_DISABLED = value
+      config.get.mockReturnValue('clientidxyz')
+      telemetryLib.init('a@4', 'binNoQueue', {})
+      await telemetryLib.trackEvent('command-error', { message: 'x' })
+      expect(spawn).not.toHaveBeenCalled()
+      if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
+      else delete process.env.AIO_TELEMETRY_DISABLED
+    }
+  )
 
   test('string eventData is stored without extra JSON quotes in flush payload', async () => {
     config.get.mockReturnValue('clientidxyz')
@@ -401,8 +425,6 @@ describe('AIO_TELEMETRY_DISABLED', () => {
 
   beforeEach(() => {
     orig = process.env.AIO_TELEMETRY_DISABLED
-    process.env.AIO_TELEMETRY_DISABLED = '1'
-    telemetryLib.init('a@4', 'binTest', {})
   })
 
   afterEach(() => {
@@ -410,16 +432,25 @@ describe('AIO_TELEMETRY_DISABLED', () => {
     else delete process.env.AIO_TELEMETRY_DISABLED
   })
 
-  test('isEnabled returns false when AIO_TELEMETRY_DISABLED is set', () => {
-    // config.get would return false (opted in), but the env var should override
-    const config = require('@adobe/aio-lib-core-config')
-    config.get.mockReturnValue(false)
-    expect(telemetryLib.isEnabled()).toBe(false)
-  })
+  test.each(['true', '1', 'yes'])(
+    'isEnabled returns false when AIO_TELEMETRY_DISABLED is %s',
+    (value) => {
+      process.env.AIO_TELEMETRY_DISABLED = value
+      telemetryLib.init('a@4', 'binTest', {})
+      const config = require('@adobe/aio-lib-core-config')
+      config.get.mockReturnValue(false)
+      expect(telemetryLib.isEnabled()).toBe(false)
+    }
+  )
 
-  test('isNull returns false when AIO_TELEMETRY_DISABLED is set', () => {
-    const config = require('@adobe/aio-lib-core-config')
-    config.get.mockReturnValue(undefined)
-    expect(telemetryLib.isNull()).toBe(false)
-  })
+  test.each(['true', '1', 'yes'])(
+    'isNull returns false when AIO_TELEMETRY_DISABLED is %s',
+    (value) => {
+      process.env.AIO_TELEMETRY_DISABLED = value
+      telemetryLib.init('a@4', 'binTest', {})
+      const config = require('@adobe/aio-lib-core-config')
+      config.get.mockReturnValue(undefined)
+      expect(telemetryLib.isNull()).toBe(false)
+    }
+  )
 })

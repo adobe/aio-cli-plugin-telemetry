@@ -78,14 +78,14 @@ The resolved URL is passed to the flush worker on each telemetry send; it applie
 
 ## Opting out via environment variable
 
-Telemetry is suppressed when `AIO_TELEMETRY_DISABLED` is **set** to a **non-empty** string. The plugin checks `process.env.AIO_TELEMETRY_DISABLED` as a JavaScript value: unset or `''` does not disable; any other string is truthy and disables telemetry.
-
-Because environment variables are always strings in Node.js, this is **not** boolean parsing: `AIO_TELEMETRY_DISABLED=0`, `=false`, or `=no` still disable telemetry (the values are the strings `"0"`, `"false"`, `"no"`, all of which are truthy). To run with telemetry allowed, **unset** the variable (or use an empty value if your environment exposes `''`).
+Telemetry is suppressed when `AIO_TELEMETRY_DISABLED` is set to one of **`true`**, **`1`**, or **`yes`** (exact match; case-sensitive). Other values such as `0`, `false`, `no`, or an empty string do **not** disable telemetry via this variable.
 
 This does not change the persisted opt-in state. Useful for CI pipelines and scripted environments.
 
 ```sh
+AIO_TELEMETRY_DISABLED=true aio app deploy
 AIO_TELEMETRY_DISABLED=1 aio app deploy
+AIO_TELEMETRY_DISABLED=yes aio app deploy
 ```
 
 ## Flush architecture

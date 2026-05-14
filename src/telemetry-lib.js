@@ -20,6 +20,11 @@ const debug = require('debug')('aio-telemetry:telemetry-lib')
 /** Adobe I/O App Builder web action that forwards CLI metrics to New Relic (ingest key stays server-side). */
 const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy-stage.adobeio-static.net/api/v1/web/dx-excshell-1/telemetry'
 
+/** @returns {boolean} Whether `AIO_TELEMETRY_DISABLED` opts out (only the literal string `"true"`). */
+function isEnvTelemetryDisabled () {
+  return ['true', '1', 'yes'].includes(process.env.AIO_TELEMETRY_DISABLED)
+}
+
 let isDisabledForCommand = false
 
 /** Metrics for non-`postrun` events in the current command; merged into one POST on `postrun`. */
@@ -186,7 +191,7 @@ async function trackEvent (eventType, rawEventData = {}) {
 
   const eventData = resolveEventData(eventType, rawEventData)
 
-  const optedOut = isDisabledForCommand || process.env.AIO_TELEMETRY_DISABLED || config.get(`${configKey}.optOut`, 'global') === true
+  const optedOut = isDisabledForCommand || isEnvTelemetryDisabled() || config.get(`${configKey}.optOut`, 'global') === true
   const willSend = !optedOut
   debug('trackEvent %s eventData=%j postUrl=%s willSend=%s', eventType, eventData, postUrl, willSend)
 
@@ -242,8 +247,8 @@ async function trackEvent (eventType, rawEventData = {}) {
       ...(Object.keys(extraFetchHeaders).length > 0 && { headers: { ...extraFetchHeaders } })
     })
     try {
+      // Omit `env`: child inherits `process.env` (proxy / TLS vars for fetch in the worker).
       const child = spawn(process.execPath, [path.join(__dirname, 'flush-worker.js'), flushPayload], {
-        env: { ...process.env, AIO_TELEMETRY_DISABLED: '1' },
         detached: true,
         stdio: 'ignore'
       })
@@ -287,13 +292,13 @@ module.exports = {
     config.set(`${configKey}.optOut`, true)
   },
   isEnabled: () => {
-    return !isDisabledForCommand && !process.env.AIO_TELEMETRY_DISABLED && config.get(`${configKey}.optOut`, 'global') === false
+    return !isDisabledForCommand && !isEnvTelemetryDisabled() && config.get(`${configKey}.optOut`, 'global') === false
   },
   disableForCommand: () => {
     isDisabledForCommand = true
   },
   isNull: () => {
-    return !process.env.AIO_TELEMETRY_DISABLED && config.get(`${configKey}.optOut`, 'global') === undefined
+    return !isEnvTelemetryDisabled() && config.get(`${configKey}.optOut`, 'global') === undefined
   },
   trackEvent,
   trackPrerun,
