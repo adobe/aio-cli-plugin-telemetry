@@ -75,7 +75,6 @@ function readQueue () {
     const normalized = normalizeQueueItems(parsed)
     if (parsed.length > normalized.length) {
       try {
-        fs.mkdirSync(path.dirname(file), { recursive: true })
         fs.writeFileSync(file, JSON.stringify(normalized), 'utf8')
       } catch {
         // same as writeQueue — never throw from telemetry persistence
