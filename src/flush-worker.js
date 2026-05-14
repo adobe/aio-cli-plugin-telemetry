@@ -10,25 +10,22 @@ governing permissions and limitations under the License.
 */
 
 /**
- * Telemetry flush worker — spawned as a detached subprocess on `postrun` only so
- * the parent process can exit immediately without waiting on the HTTP POST.
+ * Telemetry flush worker — spawned as a detached subprocess so the parent CLI can
+ * exit immediately without waiting on the HTTP POST.
  *
  * Accepts a single CLI argument: a JSON-encoded object with shape
- * { body: string, postUrl: string, headers?: object } where body is a serialised
- * New Relic metric payload (array of metric batches), postUrl is the App Builder proxy,
- * and headers (when present) are optional overrides merged after the worker defaults
- * (never pass secrets such as api-key).
+ * { body: string, postUrl: string, headers?: object } where `body` is a serialised
+ * New Relic metric batch array (same shape as the parent builds for fetch), `postUrl`
+ * is the App Builder proxy, and `headers` (when present) are optional overrides merged
+ * after the worker defaults (never pass secrets such as api-key).
  *
- * The worker merges metrics from the persistent queue (written before postrun by
- * trackEvent) with the postrun batch, POSTs, then on HTTP 2xx clears the queue;
- * on network errors or non-2xx responses the merged set is written back for retry.
+ * Failed deliveries are dropped; telemetry is best-effort and must not affect the CLI.
  */
 
 'use strict'
 
 const debug = require('debug')('aio-telemetry:flush-worker')
 const { createFetch } = require('@adobe/aio-lib-core-networking')
-const { readQueue, writeQueue, clearQueue } = require('./queue-store')
 
 const fetch = createFetch()
 
@@ -37,13 +34,11 @@ const DEFAULT_HEADERS = {
 }
 
 /**
- * Reads the persistent queue, merges it with the current event, POSTs the batch,
- * and either clears the queue on success or writes back on failure for retry.
+ * POSTs the metric batch from argv. Swallows all errors.
  * @returns {Promise<void>}
  */
 async function main () {
-  // Parse the current event payload passed by the parent process.
-  let currentMetrics
+  let batches
   let postUrl
   let requestHeaders = { ...DEFAULT_HEADERS }
   try {
@@ -59,34 +54,28 @@ async function main () {
       )
       requestHeaders = { ...DEFAULT_HEADERS, ...safe }
     }
-    currentMetrics = JSON.parse(body)[0].metrics
+    const parsedBody = JSON.parse(body)
+    if (!Array.isArray(parsedBody)) {
+      return
+    }
+    batches = parsedBody
   } catch {
-    // Malformed argument — nothing useful to do.
     return
   }
-
-  // Merge previously-queued metrics (if any) with the current event so they
-  // are all retried in a single POST.
-  const queuedMetrics = readQueue()
-  const allMetrics = [...queuedMetrics, ...currentMetrics]
 
   try {
     debug('POST %s requestHeaders=%o', postUrl, requestHeaders)
     const res = await fetch(postUrl, {
       method: 'POST',
       headers: requestHeaders,
-      body: JSON.stringify({ batches: [{ metrics: allMetrics }] })
+      body: JSON.stringify({ batches })
     })
-    // fetch resolves on 4xx/5xx; only 2xx counts as success so we do not drop queued metrics.
     if (!res?.ok) {
       const status = res?.status ?? 'unknown'
-      throw new Error(`telemetry flush failed: HTTP ${status}`)
+      debug('telemetry flush non-ok: HTTP %s', status)
     }
-    // Successful delivery — the queue is no longer needed.
-    clearQueue()
-  } catch {
-    // Network or HTTP failure — persist all metrics so the next invocation can retry.
-    writeQueue(allMetrics)
+  } catch (err) {
+    debug('telemetry flush failed: %O', err)
   }
 }
 

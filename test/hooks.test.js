@@ -22,7 +22,6 @@ jest.mock('child_process', () => ({
 
 const fetch = createFetch()
 const { spawn } = require('child_process')
-const queueStore = require('../src/queue-store')
 const telemetryLib = require('../src/telemetry-lib')
 
 const mockPackageJson = {
@@ -32,19 +31,10 @@ const mockPackageJson = {
 }
 
 describe('hook interfaces', () => {
-  beforeAll(() => {
-    jest.spyOn(queueStore, 'appendToQueue').mockImplementation(() => {})
-  })
-
-  afterAll(() => {
-    queueStore.appendToQueue.mockRestore()
-  })
-
   beforeEach(() => {
     fetch.mockReset()
     spawn.mockClear()
     config.get.mockReset()
-    queueStore.appendToQueue.mockClear()
   })
 
   test('command-error', async () => {
@@ -54,8 +44,11 @@ describe('hook interfaces', () => {
     expect(typeof hook).toBe('function')
     await hook({ message: 'msg' })
     expect(spawn).not.toHaveBeenCalled()
-    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"command-error"')
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    expect(body[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-error', 'postrun'])
   })
 
   test('command-not-found', async () => {
@@ -65,8 +58,11 @@ describe('hook interfaces', () => {
     expect(typeof hook).toBe('function')
     await hook({ id: 'id' })
     expect(spawn).not.toHaveBeenCalled()
-    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"command-not-found"')
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayloadNf = JSON.parse(spawn.mock.calls[0][1][1])
+    const bodyNf = JSON.parse(flushPayloadNf.body)
+    expect(bodyNf[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-not-found', 'postrun'])
   })
 
   /**
@@ -83,9 +79,12 @@ describe('hook interfaces', () => {
     await hook({ config: { name: 'name', version: '0.0.1', pjson: mockPackageJson }, argv: [] })
     expect(inquirer.prompt).toHaveBeenCalled()
     expect(spawn).not.toHaveBeenCalled()
-    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"telemetry-prompt"')
-    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('accepted')
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayloadAcc = JSON.parse(spawn.mock.calls[0][1][1])
+    const bodyAcc = JSON.parse(flushPayloadAcc.body)
+    expect(bodyAcc[0].metrics.map((m) => m.attributes.eventType)).toEqual(['telemetry-prompt', 'postrun'])
+    expect(bodyAcc[0].metrics[0].attributes.eventData).toBe('accepted')
     process.env = preEnv
   })
 
@@ -167,9 +166,13 @@ describe('hook interfaces', () => {
     await hook({ config: { name: 'name', version: '0.0.1', pjson: mockPackageJson }, argv: ['--verbose'] })
     expect(inquirer.prompt).toHaveBeenCalled()
     expect(spawn).not.toHaveBeenCalled()
-    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"telemetry-prompt"')
-    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('declined')
+    telemetryLib.enable()
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayloadDec = JSON.parse(spawn.mock.calls[0][1][1])
+    const bodyDec = JSON.parse(flushPayloadDec.body)
+    expect(bodyDec[0].metrics.map((m) => m.attributes.eventType)).toEqual(['telemetry-prompt', 'postrun'])
+    expect(bodyDec[0].metrics[0].attributes.eventData).toBe('declined')
     process.env = preEnv
   })
 
@@ -184,8 +187,11 @@ describe('hook interfaces', () => {
 
     await hook({ data: { feature: 'x' } })
     expect(spawn).not.toHaveBeenCalled()
-    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(queueStore.appendToQueue.mock.calls[0][0])).toContain('"eventType":"telemetry-custom-event"')
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayloadCe = JSON.parse(spawn.mock.calls[0][1][1])
+    const bodyCe = JSON.parse(flushPayloadCe.body)
+    expect(bodyCe[0].metrics.map((m) => m.attributes.eventType)).toEqual(['telemetry-custom-event', 'postrun'])
   })
 
   test('postrun', async () => {

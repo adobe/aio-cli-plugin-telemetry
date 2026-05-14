@@ -13,7 +13,6 @@
 const { createFetch } = require('@adobe/aio-lib-core-networking')
 const telemetryLib = require('../src/telemetry-lib')
 const config = require('@adobe/aio-lib-core-config')
-const queueStore = require('../src/queue-store')
 
 jest.mock('@adobe/aio-lib-core-config')
 jest.mock('child_process', () => ({
@@ -24,19 +23,10 @@ const fetch = createFetch()
 const { spawn } = require('child_process')
 
 describe('telemetry-lib', () => {
-  beforeAll(() => {
-    jest.spyOn(queueStore, 'appendToQueue').mockImplementation(() => {})
-  })
-
-  afterAll(() => {
-    queueStore.appendToQueue.mockRestore()
-  })
-
   beforeEach(() => {
     jest.resetModules()
     fetch.mockReset()
     spawn.mockClear()
-    queueStore.appendToQueue.mockClear()
   })
 
   test('exports messages', async () => {
@@ -66,17 +56,18 @@ describe('telemetry-lib', () => {
     await expect(telemetryLib.trackEvent('postrun')).resolves.toBeUndefined()
   })
 
-  test('uses client id from config when queueing non-postrun events', async () => {
+  test('buffers non-postrun until postrun merges one batch', async () => {
     config.get.mockReturnValue('clientidxyz')
-    telemetryLib.init('a@4', 'binTest2', {})
+    telemetryLib.init('a@4', 'binBuf', {})
     await telemetryLib.trackEvent('telemetry-custom-event')
-    expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.clientId')
-    expect(config.get).toHaveBeenCalledWith('binTest2-cli-telemetry.optOut', 'global')
     expect(spawn).not.toHaveBeenCalled()
-    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
-    const appended = queueStore.appendToQueue.mock.calls[0][0]
-    expect(appended).toHaveLength(1)
-    expect(JSON.stringify(appended[0])).toContain('"clientId":"clientidxyz"')
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    expect(body[0].metrics).toHaveLength(2)
+    expect(body[0].metrics[0].attributes.eventType).toBe('telemetry-custom-event')
+    expect(body[0].metrics[1].attributes.eventType).toBe('postrun')
   })
 
   test('postrun adds durationMs to eventData when the hook omits payload and prerunTimer is set', async () => {
@@ -186,24 +177,27 @@ describe('telemetry-lib', () => {
     else delete process.env.AIO_TELEMETRY_DISABLED
   })
 
-  test('trackEvent does not queue when AIO_TELEMETRY_DISABLED is set for non-postrun', async () => {
+  test('trackEvent does not flush when AIO_TELEMETRY_DISABLED is set for non-postrun', async () => {
     const orig = process.env.AIO_TELEMETRY_DISABLED
     process.env.AIO_TELEMETRY_DISABLED = '1'
     config.get.mockReturnValue('clientidxyz')
     telemetryLib.init('a@4', 'binNoQueue', {})
     await telemetryLib.trackEvent('command-error', { message: 'x' })
-    expect(queueStore.appendToQueue).not.toHaveBeenCalled()
     expect(spawn).not.toHaveBeenCalled()
     if (orig !== undefined) process.env.AIO_TELEMETRY_DISABLED = orig
     else delete process.env.AIO_TELEMETRY_DISABLED
   })
 
-  test('string eventData is stored without extra JSON quotes when queueing', async () => {
+  test('string eventData is stored without extra JSON quotes in flush payload', async () => {
     config.get.mockReturnValue('clientidxyz')
     telemetryLib.init('a@4', 'binStrEd', {})
     await telemetryLib.trackEvent('telemetry-prompt', 'accepted')
-    expect(queueStore.appendToQueue).toHaveBeenCalledTimes(1)
-    const metric = queueStore.appendToQueue.mock.calls[0][0][0]
+    expect(spawn).not.toHaveBeenCalled()
+    await telemetryLib.trackEvent('postrun')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    const metric = body[0].metrics[0]
     expect(metric.attributes.eventData).toBe('accepted')
     expect(metric.attributes.eventData).not.toMatch(/^"/)
   })

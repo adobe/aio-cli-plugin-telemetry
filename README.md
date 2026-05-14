@@ -74,7 +74,7 @@ export AIO_TELEMETRY_POST_URL='https://<namespace>-<project>.adobeio-static.net/
 mycli app deploy
 ```
 
-The resolved URL is passed to the flush worker on **`postrun`**; it applies for the rest of that CLI process after `init` runs.
+The resolved URL is passed to the flush worker on each telemetry send; it applies for the rest of that CLI process after `init` runs.
 
 ## Opting out via environment variable
 
@@ -90,9 +90,11 @@ AIO_TELEMETRY_DISABLED=1 aio app deploy
 
 ## Flush architecture
 
-Telemetry events are sent via a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI process spawns the worker and immediately unrefs it, so the CLI can exit without waiting for the HTTP request to finish.
+Telemetry is **best-effort**: events are not persisted when the proxy is down or the network fails.
 
-Events queued on disk before `postrun` use `src/queue-store.js` (see that file for the path). The queue keeps at most **1000** metric objects; if the proxy stays down and the queue would grow past that, the oldest entries are dropped so the JSON file cannot grow without bound.
+On **`postrun`**, any in-memory metrics from earlier hooks in the same command are merged with the `postrun` metric and the combined batch is handed off to a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI spawns the worker and immediately `unref()`s it, so the CLI can exit without waiting for the HTTP POST. If the POST fails (network error or non-2xx response), the batch is dropped; telemetry must not block or slow normal CLI use.
+
+Non-`postrun` events (for example `command-error`, `telemetry-prompt`) are held in an **in-memory buffer** until that flush. If the process exits before `postrun` (crash, `SIGKILL`), buffered events are lost. The buffer is cleared when telemetry is disabled or when `init` runs again (new command session).
 
 ## Agent detection
 

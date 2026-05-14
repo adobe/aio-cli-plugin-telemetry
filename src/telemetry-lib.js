@@ -13,7 +13,6 @@ const { spawn } = require('child_process')
 const path = require('path')
 const os = require('os')
 const config = require('@adobe/aio-lib-core-config')
-const queueStore = require('./queue-store')
 
 const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
@@ -22,6 +21,9 @@ const debug = require('debug')('aio-telemetry:telemetry-lib')
 const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy-stage.adobeio-static.net/api/v1/web/dx-excshell-1/telemetry'
 
 let isDisabledForCommand = false
+
+/** Metrics for non-`postrun` events in the current command; merged into one POST on `postrun`. */
+const pendingCommandMetrics = []
 
 /**
  * Detects GitHub Copilot Chat on PATH via the extension id in globalStorage paths (any OS path separator).
@@ -92,8 +94,8 @@ const DEFAULT_FETCH_HEADERS = {
   'Content-Type': 'application/json'
 }
 
-/** @type {Record<string, string>} Full headers for in-process use (defaults + extras from host config). */
-let fetchHeaders = { ...DEFAULT_FETCH_HEADERS }
+/** @type {Record<string, string>} Default headers for the metric payload (flush worker merges {@link extraFetchHeaders}). */
+const fetchHeaders = { ...DEFAULT_FETCH_HEADERS }
 /** @type {Record<string, string>} Host-only headers from `aioTelemetry.fetchHeaders` (passed to flush worker as overrides, not defaults). */
 let extraFetchHeaders = {}
 /** @type {string} Resolved proxy URL (defaults at module load; init may override). */
@@ -170,7 +172,10 @@ function formatEventDataAttribute (eventData) {
 }
 
 /**
- * @description tracks the event
+ * Records a telemetry event. Non-`postrun` metrics are held in memory and sent in a single
+ * batched POST when `postrun` runs. When enabled, the flush worker is detached so the CLI
+ * never waits on the network; failed deliveries are dropped (no disk queue).
+ *
  * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
  * @param {object|string|number|undefined} [rawEventData] Optional hook payload (e.g. `{ message }` on errors).
  *   Command/flags/duration are also sent as separate metric attributes from prerun/postrun.
@@ -186,6 +191,7 @@ async function trackEvent (eventType, rawEventData = {}) {
   debug('trackEvent %s eventData=%j postUrl=%s willSend=%s', eventType, eventData, postUrl, willSend)
 
   if (optedOut) {
+    pendingCommandMetrics.length = 0
     debug('Telemetry is off. Not logging telemetry event', eventType)
   } else {
     const clientId = getClientId()
@@ -218,16 +224,20 @@ async function trackEvent (eventType, rawEventData = {}) {
         }]
       }])
     }
-    const metrics = JSON.parse(fetchConfig.body)[0].metrics
+    const batch = JSON.parse(fetchConfig.body)
+    const metricsThisEvent = batch[0].metrics
 
     if (eventType !== 'postrun') {
-      // Queue until postrun so only one detached flush worker runs per command (avoids concurrent merges).
-      queueStore.appendToQueue(metrics)
+      pendingCommandMetrics.push(...metricsThisEvent)
       return
     }
 
+    const mergedMetrics = [...pendingCommandMetrics, ...metricsThisEvent]
+    pendingCommandMetrics.length = 0
+    const mergedBody = JSON.stringify([{ metrics: mergedMetrics }])
+
     const flushPayload = JSON.stringify({
-      body: fetchConfig.body,
+      body: mergedBody,
       postUrl,
       ...(Object.keys(extraFetchHeaders).length > 0 && { headers: { ...extraFetchHeaders } })
     })
@@ -256,6 +266,7 @@ function trackPrerun (command, flags, start) {
 module.exports = {
   getInvocationContext,
   init: (versionString, binName, remoteConf = {}) => {
+    pendingCommandMetrics.length = 0
     global.commandHookStartTime = Date.now()
     rootCliVersion = versionString
     postUrl = remoteConf.postUrl || process.env.AIO_TELEMETRY_POST_URL || DEFAULT_TELEMETRY_POST_URL
@@ -263,8 +274,6 @@ module.exports = {
       ? remoteConf.fetchHeaders
       : {}
     const BLOCKED_HEADERS = new Set(['api-key', 'authorization', 'x-api-key', 'x-ingest-key'])
-    extraFetchHeaders = Object.fromEntries(
-      Object.entries(rawExtra).filter(([key]) => !BLOCKED_HEADERS.has(key.toLowerCase()))
     extraFetchHeaders = Object.fromEntries(
       Object.entries(rawExtra).filter(([key]) => !BLOCKED_HEADERS.has(key.toLowerCase()))
     )
@@ -293,6 +302,7 @@ module.exports = {
   resolveEventData,
   formatEventDataAttribute,
   reset: () => {
+    pendingCommandMetrics.length = 0
     config.delete(configKey)
   },
   getOnMessage,

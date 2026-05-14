@@ -12,14 +12,7 @@
 
 const { createFetch } = require('@adobe/aio-lib-core-networking')
 
-jest.mock('../src/queue-store', () => ({
-  readQueue: jest.fn(() => []),
-  writeQueue: jest.fn(),
-  clearQueue: jest.fn()
-}))
-
 const fetch = createFetch()
-const { readQueue, writeQueue, clearQueue } = require('../src/queue-store')
 const { main } = require('../src/flush-worker')
 
 const PROXY = 'https://telemetry-proxy.example/api/v1/web/dx-excshell-1/telemetry'
@@ -39,18 +32,13 @@ describe('flush-worker main()', () => {
   beforeEach(() => {
     origArgv = process.argv
     fetch.mockReset()
-    readQueue.mockClear()
-    writeQueue.mockClear()
-    clearQueue.mockClear()
   })
 
   afterEach(() => {
     process.argv = origArgv
   })
 
-  test('POSTs merged metrics and clears queue on success', async () => {
-    const queued = [{ name: 'aio.cli.telemetry', value: 1, attributes: { eventType: 'prerun' } }]
-    readQueue.mockReturnValue(queued)
+  test('POSTs batches from payload on success', async () => {
     fetch.mockResolvedValue({ ok: true })
 
     process.argv = ['node', 'flush-worker.js', flushArg()]
@@ -64,77 +52,42 @@ describe('flush-worker main()', () => {
     expect(opts.headers['Api-Key']).toBeUndefined()
 
     const posted = JSON.parse(opts.body)
-    expect(posted.batches[0].metrics).toHaveLength(2)
-    expect(posted.batches[0].metrics[0]).toEqual(queued[0])
-    expect(posted.batches[0].metrics[1]).toEqual(METRIC)
-
-    expect(clearQueue).toHaveBeenCalledTimes(1)
-    expect(writeQueue).not.toHaveBeenCalled()
+    expect(posted.batches).toHaveLength(1)
+    expect(posted.batches[0].metrics).toHaveLength(1)
+    expect(posted.batches[0].metrics[0]).toEqual(METRIC)
   })
 
-  test('writes merged metrics to queue on fetch failure', async () => {
-    readQueue.mockReturnValue([])
+  test('does not throw when fetch rejects', async () => {
     fetch.mockRejectedValue(new Error('network error'))
 
     process.argv = ['node', 'flush-worker.js', flushArg()]
-    await main()
-
-    expect(writeQueue).toHaveBeenCalledTimes(1)
-    expect(writeQueue).toHaveBeenCalledWith([METRIC])
-    expect(clearQueue).not.toHaveBeenCalled()
+    await expect(main()).resolves.toBeUndefined()
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 
-  test('writes merged metrics to queue when fetch resolves with non-ok response', async () => {
-    readQueue.mockReturnValue([])
+  test('does not throw when fetch resolves with non-ok response', async () => {
     fetch.mockResolvedValue({ ok: false, status: 503 })
 
     process.argv = ['node', 'flush-worker.js', flushArg()]
-    await main()
-
-    expect(writeQueue).toHaveBeenCalledTimes(1)
-    expect(writeQueue).toHaveBeenCalledWith([METRIC])
-    expect(clearQueue).not.toHaveBeenCalled()
+    await expect(main()).resolves.toBeUndefined()
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 
-  test('writes merged metrics to queue when fetch resolves with ok false and no status', async () => {
-    readQueue.mockReturnValue([])
+  test('does not throw when fetch resolves with ok false and no status', async () => {
     fetch.mockResolvedValue({ ok: false })
 
     process.argv = ['node', 'flush-worker.js', flushArg()]
-    await main()
-
-    expect(writeQueue).toHaveBeenCalledTimes(1)
-    expect(writeQueue).toHaveBeenCalledWith([METRIC])
-    expect(clearQueue).not.toHaveBeenCalled()
+    await expect(main()).resolves.toBeUndefined()
   })
 
-  test('writes merged metrics to queue when fetch resolves with undefined response', async () => {
-    readQueue.mockReturnValue([])
+  test('does not throw when fetch resolves with undefined response', async () => {
     fetch.mockResolvedValue(undefined)
 
     process.argv = ['node', 'flush-worker.js', flushArg()]
-    await main()
-
-    expect(writeQueue).toHaveBeenCalledTimes(1)
-    expect(writeQueue).toHaveBeenCalledWith([METRIC])
-    expect(clearQueue).not.toHaveBeenCalled()
-  })
-
-  test('merges empty queue with current event', async () => {
-    readQueue.mockReturnValue([])
-    fetch.mockResolvedValue({ ok: true })
-
-    process.argv = ['node', 'flush-worker.js', flushArg()]
-    await main()
-
-    const posted = JSON.parse(fetch.mock.calls[0][1].body)
-    expect(posted.batches[0].metrics).toHaveLength(1)
-    expect(posted.batches[0].metrics[0]).toEqual(METRIC)
-    expect(clearQueue).toHaveBeenCalledTimes(1)
+    await expect(main()).resolves.toBeUndefined()
   })
 
   test('merges optional payload headers as overrides after defaults', async () => {
-    readQueue.mockReturnValue([])
     fetch.mockResolvedValue({ ok: true })
     process.argv = ['node', 'flush-worker.js', flushArg(BODY, { 'X-Custom-Proxy': 'unit-test' })]
     await main()
@@ -150,14 +103,12 @@ describe('flush-worker main()', () => {
     process.argv = ['node', 'flush-worker.js']
     await main()
     expect(fetch).not.toHaveBeenCalled()
-    expect(writeQueue).not.toHaveBeenCalled()
   })
 
   test('returns silently when argv[2] is malformed JSON', async () => {
     process.argv = ['node', 'flush-worker.js', 'not-json{{{']
     await main()
     expect(fetch).not.toHaveBeenCalled()
-    expect(writeQueue).not.toHaveBeenCalled()
   })
 
   test('returns silently when postUrl is missing', async () => {
@@ -166,8 +117,13 @@ describe('flush-worker main()', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  test('returns silently when body is not a JSON array', async () => {
+    process.argv = ['node', 'flush-worker.js', JSON.stringify({ body: '{"foo":1}', postUrl: PROXY })]
+    await main()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   test('uses default headers when headers omitted from payload', async () => {
-    readQueue.mockReturnValue([])
     fetch.mockResolvedValue({ ok: true })
     process.argv = ['node', 'flush-worker.js', JSON.stringify({ body: BODY, postUrl: PROXY })]
     await main()
