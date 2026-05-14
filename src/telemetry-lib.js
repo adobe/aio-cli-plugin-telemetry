@@ -94,14 +94,7 @@ const osNameVersion = `${os.type()} ${os.release()}`
 let rootCliVersion = '?'
 let prerunEvent = { flags: [] }
 
-/** Built-in request headers; the flush worker subprocess applies the same defaults for its POST. */
-const DEFAULT_FETCH_HEADERS = {
-  'Content-Type': 'application/json'
-}
-
-/** @type {Record<string, string>} Default headers for the metric payload (flush worker merges {@link extraFetchHeaders}). */
-const fetchHeaders = { ...DEFAULT_FETCH_HEADERS }
-/** @type {Record<string, string>} Host-only headers from `aioTelemetry.fetchHeaders` (passed to flush worker as overrides, not defaults). */
+/** @type {Record<string, string>} Host-only headers from `aioTelemetry.fetchHeaders` (passed to flush worker as overrides). */
 let extraFetchHeaders = {}
 /** @type {string} Resolved proxy URL (defaults at module load; init may override). */
 let postUrl = DEFAULT_TELEMETRY_POST_URL
@@ -202,42 +195,33 @@ async function trackEvent (eventType, rawEventData = {}) {
     const clientId = getClientId()
     const timestamp = Date.now()
     const invocationContext = getInvocationContext()
-    const fetchConfig = {
-      method: 'POST',
-      headers: fetchHeaders,
-      body: JSON.stringify([{
-        metrics: [{
-          name: 'aio.cli.telemetry',
-          type: 'gauge',
-          value: 1,
-          // id: Math.floor(timestamp * Math.random()),
-          timestamp,
-          attributes: {
-            eventType,
-            eventData: formatEventDataAttribute(eventData),
-            cliVersion: rootCliVersion,
-            clientId,
-            command: prerunEvent.command,
-            commandDuration: timestamp - prerunEvent.start,
-            commandFlags: prerunEvent.flags.toString(),
-            commandSuccess: eventType !== 'command-error',
-            nodeVersion: process.version,
-            osNameVersion,
-            invocation_context: /* istanbul ignore next */ invocationContext.isAgent ? 'agent' : 'human',
-            agent_name: /* istanbul ignore next */ invocationContext.agentName || 'unknown'
-          }
-        }]
-      }])
+    const metric = {
+      name: 'aio.cli.telemetry',
+      type: 'gauge',
+      value: 1,
+      timestamp,
+      attributes: {
+        eventType,
+        eventData: formatEventDataAttribute(eventData),
+        cliVersion: rootCliVersion,
+        clientId,
+        command: prerunEvent.command,
+        commandDuration: timestamp - prerunEvent.start,
+        commandFlags: prerunEvent.flags.toString(),
+        commandSuccess: eventType !== 'command-error',
+        nodeVersion: process.version,
+        osNameVersion,
+        invocation_context: /* istanbul ignore next */ invocationContext.isAgent ? 'agent' : 'human',
+        agent_name: /* istanbul ignore next */ invocationContext.agentName || 'unknown'
+      }
     }
-    const batch = JSON.parse(fetchConfig.body)
-    const metricsThisEvent = batch[0].metrics
 
     if (eventType !== 'postrun') {
-      pendingCommandMetrics.push(...metricsThisEvent)
+      pendingCommandMetrics.push(metric)
       return
     }
 
-    const mergedMetrics = [...pendingCommandMetrics, ...metricsThisEvent]
+    const mergedMetrics = [...pendingCommandMetrics, metric]
     pendingCommandMetrics.length = 0
     const mergedBody = JSON.stringify([{ metrics: mergedMetrics }])
 
