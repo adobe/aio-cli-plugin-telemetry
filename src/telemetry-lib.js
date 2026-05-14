@@ -265,10 +265,9 @@ module.exports = {
     const BLOCKED_HEADERS = new Set(['api-key', 'authorization', 'x-api-key', 'x-ingest-key'])
     extraFetchHeaders = Object.fromEntries(
       Object.entries(rawExtra).filter(([key]) => !BLOCKED_HEADERS.has(key.toLowerCase()))
+    extraFetchHeaders = Object.fromEntries(
+      Object.entries(rawExtra).filter(([key]) => !BLOCKED_HEADERS.has(key.toLowerCase()))
     )
-      Object.entries(rawExtra).filter(([key]) => key.toLowerCase() !== 'api-key')
-    )
-    fetchHeaders = { ...DEFAULT_FETCH_HEADERS, ...extraFetchHeaders }
     configKey = binName + '-cli-telemetry'
   },
   getClientId,
