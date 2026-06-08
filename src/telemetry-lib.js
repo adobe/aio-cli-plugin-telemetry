@@ -17,7 +17,7 @@ const config = require('@adobe/aio-lib-core-config')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
 /** Adobe I/O App Builder web action that forwards CLI metrics to New Relic (ingest key stays server-side). */
-const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy-stage.adobeio-static.net/api/v1/web/dx-excshell-1/telemetry'
+const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy.adobeio-static.net/api/v1/web/dx-excshell-1/telemetry'
 
 /** @returns {boolean} Whether `AIO_TELEMETRY_DISABLED` opts out (only the literal string `"true"`). */
 function isEnvTelemetryDisabled () {
