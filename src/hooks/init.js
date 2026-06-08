@@ -46,7 +46,7 @@ module.exports = async function (opts) {
     // skip in CI (handled above) and when oclif-dev readme runs (it fires this event);
     // also skip for telemetry commands, where the user is already setting state.
     if (['readme', 'telemetry'].indexOf(opts.id) < 0) {
-      telemetryLib.notice(productName, binName, opts?.config?.pjson?.aioTelemetry?.productPrivacyPolicyLink)
+      telemetryLib.notice(productName, opts?.config?.pjson?.aioTelemetry?.productPrivacyPolicyLink)
     }
   }
 }

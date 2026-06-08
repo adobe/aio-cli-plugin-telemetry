@@ -41,12 +41,11 @@ describe('telemetry-lib', () => {
   })
 
   test('getNoticeMessage uses the default privacy link, or a provided one', async () => {
-    const withDefault = telemetryLib.getNoticeMessage('Adobe Developer CLI', 'aio')
+    const withDefault = telemetryLib.getNoticeMessage('Adobe Developer CLI')
     expect(withDefault).toMatch('on by default')
-    expect(withDefault).toMatch('aio telemetry off')
     expect(withDefault).toMatch('developer.adobe.com/app-builder/docs/guides/telemetry')
 
-    const withLink = telemetryLib.getNoticeMessage('Adobe Developer CLI', 'aio', 'https://example.com/privacy')
+    const withLink = telemetryLib.getNoticeMessage('Adobe Developer CLI', 'https://example.com/privacy')
     expect(withLink).toMatch('https://example.com/privacy')
   })
 

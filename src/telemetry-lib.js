@@ -119,11 +119,9 @@ const getOnMessage = (productName, binName) => {
 const getOffMessage = (binName) => {
   return `\nTelemetry is off.\nIf you would like to turn telemetry on, simply run \`${binName} telemetry on\``
 }
-const getNoticeMessage = (productName, binName, privacyPolicyLink) => {
-  return `${productName} collects anonymous usage data to help us improve our products. ` +
-    'Telemetry is on by default; read what we collect and how it is used here:\n' +
-    `      ${privacyPolicyLink || defaultPrivacyPolicyLink}\n` +
-    `To opt out, run \`${binName} telemetry off\` (or set AIO_TELEMETRY_DISABLED=true).`
+const getNoticeMessage = (productName, privacyPolicyLink) => {
+  return `${productName} collects anonymous usage data to help us improve our products.\n` +
+    `Telemetry is on by default; read what we collect and how it is used here: ${privacyPolicyLink || defaultPrivacyPolicyLink}`
 }
 
 /**
@@ -302,8 +300,8 @@ module.exports = {
   getOnMessage,
   getOffMessage,
   getNoticeMessage,
-  notice: (productName, binName, privacyPolicyLink) => {
-    console.log(getNoticeMessage(productName, binName, privacyPolicyLink))
+  notice: (productName, privacyPolicyLink) => {
+    console.log(getNoticeMessage(productName, privacyPolicyLink))
     config.set(`${configKey}.optOut`, false)
     trackEvent('telemetry-notice', 'shown')
   }
