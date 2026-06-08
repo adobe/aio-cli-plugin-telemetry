@@ -9,8 +9,7 @@
     "@adobe/aio-lib-core-networking": "^5.0.4",
     "@oclif/core": "^4",
     "ci-info": "^4.0.0",
-    "debug": "^4.1.1",
-    "inquirer": "^8.2.1"
+    "debug": "^4.1.1"
   },
   "devDependencies": {
     "@adobe/eslint-config-aio-lib-config": "5.0.0",
