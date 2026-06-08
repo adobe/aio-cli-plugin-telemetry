@@ -191,7 +191,7 @@ async function trackEvent (eventType, rawEventData = {}) {
 
   const optedOut = isDisabledForCommand || isEnvTelemetryDisabled() || config.get(`${configKey}.optOut`, 'global') === true
   const willSend = !optedOut
-  debug('trackEvent %s eventData=%j postUrl=%s willSend=%s', eventType, eventData, postUrl, willSend)
+  debug(`trackEvent ${eventType} eventData=${JSON.stringify(eventData)} postUrl=${postUrl} willSend=${willSend}`)
 
   if (optedOut) {
     pendingCommandMetrics.length = 0
