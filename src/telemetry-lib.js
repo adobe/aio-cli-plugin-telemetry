@@ -26,8 +26,11 @@ function isEnvTelemetryDisabled () {
 
 let isDisabledForCommand = false
 
-/** Metrics for non-`postrun` events in the current command; merged into one POST on `postrun`. */
+/** Metrics for non-terminal events in the current command; merged into the POST on a terminal event. */
 const pendingCommandMetrics = []
+
+/** Events after which oclif does not run `postrun`; each triggers an immediate flush. */
+const TERMINAL_EVENTS = ['postrun', 'command-error', 'command-not-found']
 
 /**
  * Detects GitHub Copilot Chat on PATH via the extension id in globalStorage paths (any OS path separator).
@@ -173,9 +176,10 @@ function formatEventDataAttribute (eventData) {
 }
 
 /**
- * Records a telemetry event. Non-`postrun` metrics are held in memory and sent in a single
- * batched POST when `postrun` runs. When enabled, the flush worker is detached so the CLI
- * never waits on the network; failed deliveries are dropped (no disk queue).
+ * Records a telemetry event. Non-terminal metrics are held in memory and sent in a single
+ * batched POST on the next terminal event (`postrun`, `command-error`, `command-not-found`).
+ * When enabled, the flush worker is detached so the CLI never waits on the network; failed
+ * deliveries are dropped (no disk queue).
  *
  * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
  * @param {object|string|number|undefined} [rawEventData] Optional hook payload (e.g. `{ message }` on errors).
@@ -219,7 +223,12 @@ async function trackEvent (eventType, rawEventData = {}) {
       }
     }
 
-    if (eventType !== 'postrun') {
+    // `postrun` fires after a command completes successfully. `command-error` and
+    // `command-not-found` are *terminal*: oclif does NOT run `postrun` after them, so if we
+    // only flushed on `postrun` these (the most valuable signal) would be buffered and silently
+    // dropped on exit. Flush on any terminal event so error telemetry is actually delivered.
+    const isTerminalEvent = TERMINAL_EVENTS.includes(eventType)
+    if (!isTerminalEvent) {
       pendingCommandMetrics.push(metric)
       return
     }

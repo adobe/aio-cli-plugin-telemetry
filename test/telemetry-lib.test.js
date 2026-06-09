@@ -82,6 +82,18 @@ describe('telemetry-lib', () => {
     expect(body[0].metrics[1].attributes.eventType).toBe('postrun')
   })
 
+  test('terminal command-error flushes buffered events without a postrun', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binErr', {})
+    await telemetryLib.trackEvent('telemetry-custom-event')
+    expect(spawn).not.toHaveBeenCalled()
+    await telemetryLib.trackEvent('command-error', { message: 'boom' })
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    expect(body[0].metrics.map((m) => m.attributes.eventType)).toEqual(['telemetry-custom-event', 'command-error'])
+  })
+
   test('postrun adds durationMs to eventData when the hook omits payload and prerunTimer is set', async () => {
     global.prerunTimer = Date.now() - 40
     config.get.mockReturnValue('clientidxyz')

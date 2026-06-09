@@ -92,9 +92,9 @@ AIO_TELEMETRY_DISABLED=yes aio app deploy
 
 Telemetry is **best-effort**: events are not persisted when the proxy is down or the network fails.
 
-On **`postrun`**, any in-memory metrics from earlier hooks in the same command are merged with the `postrun` metric and the combined batch is handed off to a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI spawns the worker and immediately `unref()`s it, so the CLI can exit without waiting for the HTTP POST. If the POST fails (network error or non-2xx response), the batch is dropped; telemetry must not block or slow normal CLI use.
+A flush happens on a **terminal event** — `postrun` (command succeeded), `command-error` (command threw), or `command-not-found`. oclif runs `postrun` only on success, so `command-error`/`command-not-found` must flush on their own; otherwise error telemetry (the most valuable signal) would be buffered and silently dropped on exit. On a terminal event, any in-memory metrics from earlier hooks in the same command are merged with the terminal metric and the combined batch is handed off to a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI spawns the worker and immediately `unref()`s it, so the CLI can exit without waiting for the HTTP POST. If the POST fails (network error or non-2xx response), the batch is dropped; telemetry must not block or slow normal CLI use.
 
-Non-`postrun` events (for example `command-error`, `telemetry-notice`) are held in an **in-memory buffer** until that flush. If the process exits before `postrun` (crash, `SIGKILL`), buffered events are lost. The buffer is cleared when telemetry is disabled or when `init` runs again (new command session).
+Non-terminal events (for example `telemetry-notice`) are held in an **in-memory buffer** until the next terminal event flushes them. If the process exits before any terminal event (crash, `SIGKILL`), buffered events are lost. The buffer is cleared when telemetry is disabled or when `init` runs again (new command session).
 
 ## Agent detection
 
