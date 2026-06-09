@@ -66,6 +66,7 @@ describe('hook interfaces', () => {
     const flushPayloadNf = JSON.parse(spawn.mock.calls[0][1][1])
     const bodyNf = JSON.parse(flushPayloadNf.body)
     expect(bodyNf[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-not-found'])
+    expect(bodyNf[0].metrics[0].attributes.commandSuccess).toBe(false)
   })
 
   test('init shows one-time notice on first run', async () => {

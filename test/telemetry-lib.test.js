@@ -94,6 +94,63 @@ describe('telemetry-lib', () => {
     expect(body[0].metrics.map((m) => m.attributes.eventType)).toEqual(['telemetry-custom-event', 'command-error'])
   })
 
+  test('a typo (command-not-found then host command-error) is recorded as a single command-not-found', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binOnce', {})
+    // a typo fires command-not-found (from oclif) and then command-error (rethrown by the host)
+    await telemetryLib.trackEvent('command-not-found', 'bogus')
+    await telemetryLib.trackEvent('command-error', { message: 'Run aio help' })
+    expect(spawn).toHaveBeenCalledTimes(1)
+    const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
+    const body = JSON.parse(flushPayload.body)
+    expect(body[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-not-found'])
+  })
+
+  test('only the first command-error after a not-found is suppressed; a later one still flushes', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binReset', {})
+    await telemetryLib.trackEvent('command-not-found', 'bogus') // flush #1
+    await telemetryLib.trackEvent('command-error', { message: 'Run aio help' }) // dropped: the typo rethrow
+    await telemetryLib.trackEvent('command-error', { message: 'unrelated later error' }) // flush #2
+    expect(spawn).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(JSON.parse(spawn.mock.calls[0][1][1]).body)[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-not-found'])
+    expect(JSON.parse(JSON.parse(spawn.mock.calls[1][1][1]).body)[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-error'])
+  })
+
+  test('"Did you mean ...? Yes": not-found then the suggested command runs and its postrun flushes', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binYes', {})
+    await telemetryLib.trackEvent('command-not-found', 'telemetryd') // flush #1
+    telemetryLib.trackPrerun('telemetry', [], Date.now()) // suggestion accepted -> command runs
+    await telemetryLib.trackEvent('postrun') // flush #2
+    expect(spawn).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(JSON.parse(spawn.mock.calls[1][1][1]).body)[0].metrics.map((m) => m.attributes.eventType)).toEqual(['postrun'])
+  })
+
+  test('"Did you mean ...? Yes" then the suggested command errors: that command-error is NOT masked', async () => {
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binYesErr', {})
+    await telemetryLib.trackEvent('command-not-found', 'telemetryd') // flush #1
+    telemetryLib.trackPrerun('telemetry', [], Date.now()) // suggestion accepted -> command runs (clears the flag)
+    await telemetryLib.trackEvent('command-error', { message: 'the real command failed' }) // flush #2
+    expect(spawn).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(JSON.parse(spawn.mock.calls[1][1][1]).body)[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-error'])
+  })
+
+  test('nested commands in one process each flush (no masking): two postruns => two flushes', async () => {
+    // A command that calls config.runCommand re-fires prerun/postrun for the child; init runs once.
+    // The child postrun must NOT suppress the parent terminal event.
+    config.get.mockReturnValue('clientidxyz')
+    telemetryLib.init('a@4', 'binNested', {})
+    telemetryLib.trackPrerun('app:clean', [], Date.now())
+    await telemetryLib.trackEvent('postrun') // child (e.g. app:clean) succeeds
+    telemetryLib.trackPrerun('app:undeploy', [], Date.now())
+    await telemetryLib.trackEvent('command-error', { message: 'parent failed after child succeeded' })
+    expect(spawn).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(JSON.parse(spawn.mock.calls[0][1][1]).body)[0].metrics.map((m) => m.attributes.eventType)).toEqual(['postrun'])
+    expect(JSON.parse(JSON.parse(spawn.mock.calls[1][1][1]).body)[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-error'])
+  })
+
   test('postrun adds durationMs to eventData when the hook omits payload and prerunTimer is set', async () => {
     global.prerunTimer = Date.now() - 40
     config.get.mockReturnValue('clientidxyz')
