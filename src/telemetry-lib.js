@@ -14,11 +14,10 @@ const path = require('path')
 const os = require('os')
 const config = require('@adobe/aio-lib-core-config')
 
-const inquirer = require('inquirer')
 const debug = require('debug')('aio-telemetry:telemetry-lib')
 
 /** Adobe I/O App Builder web action that forwards CLI metrics to New Relic (ingest key stays server-side). */
-const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy-stage.adobeio-static.net/api/v1/web/dx-excshell-1/telemetry'
+const DEFAULT_TELEMETRY_POST_URL = 'https://53444-aioclitelemetryproxy.adobeio-static.net/api/v1/web/dx-excshell-1/telemetry'
 
 /** @returns {boolean} Whether `AIO_TELEMETRY_DISABLED` opts out (only the literal string `"true"`). */
 function isEnvTelemetryDisabled () {
@@ -120,6 +119,10 @@ const getOnMessage = (productName, binName) => {
 const getOffMessage = (binName) => {
   return `\nTelemetry is off.\nIf you would like to turn telemetry on, simply run \`${binName} telemetry on\``
 }
+const getNoticeMessage = (productName, privacyPolicyLink) => {
+  return `${productName} collects anonymous usage data to help us improve our products.\n` +
+    `Telemetry is on by default; read what we collect and how it is used here: ${privacyPolicyLink || defaultPrivacyPolicyLink}`
+}
 
 /**
  * Builds the value stored in the metric `eventData` attribute. For `postrun`, an empty object is
@@ -186,7 +189,7 @@ async function trackEvent (eventType, rawEventData = {}) {
 
   const optedOut = isDisabledForCommand || isEnvTelemetryDisabled() || config.get(`${configKey}.optOut`, 'global') === true
   const willSend = !optedOut
-  debug('trackEvent %s eventData=%j postUrl=%s willSend=%s', eventType, eventData, postUrl, willSend)
+  debug(`trackEvent ${eventType} eventData=${JSON.stringify(eventData)} postUrl=${postUrl} willSend=${willSend}`)
 
   if (optedOut) {
     pendingCommandMetrics.length = 0
@@ -276,7 +279,7 @@ module.exports = {
     config.set(`${configKey}.optOut`, true)
   },
   isEnabled: () => {
-    return !isDisabledForCommand && !isEnvTelemetryDisabled() && config.get(`${configKey}.optOut`, 'global') === false
+    return !isDisabledForCommand && !isEnvTelemetryDisabled() && config.get(`${configKey}.optOut`, 'global') !== true
   },
   disableForCommand: () => {
     isDisabledForCommand = true
@@ -296,30 +299,10 @@ module.exports = {
   },
   getOnMessage,
   getOffMessage,
-  prompt: async (productName, binName, privacyPolicyLink) => {
-    console.log(`
-      How you use ${productName} provides us with important data that we can use
-      to make our products better. Please read our guide for more information on
-      the data we anonymously collect, and how we use it.
-      ${privacyPolicyLink || defaultPrivacyPolicyLink}
-    `)
-
-    const response = await inquirer.prompt([{
-      name: 'accept',
-      type: 'confirm',
-      message: `Would you like to allow ${productName} to collect anonymous usage data?`
-    }])
-    if (response.accept) {
-      config.set(`${configKey}.optOut`, false)
-      console.log(getOnMessage(productName, binName))
-      trackEvent('telemetry-prompt', 'accepted')
-    } else {
-      // we will set optOut to true after tracking this one event
-      // todo: check if tty error
-      config.set(`${configKey}.optOut`, false)
-      console.log(getOffMessage(binName))
-      trackEvent('telemetry-prompt', 'declined')
-      config.set(`${configKey}.optOut`, true)
-    }
+  getNoticeMessage,
+  notice: (productName, privacyPolicyLink) => {
+    console.log(getNoticeMessage(productName, privacyPolicyLink))
+    config.set(`${configKey}.optOut`, false)
+    trackEvent('telemetry-notice', 'shown')
   }
 }

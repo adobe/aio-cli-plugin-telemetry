@@ -43,8 +43,8 @@ When this plugin is hosted by different CLIs:
 - `aioTelemetry` (optional object in the root `package.json` of the **host CLI** — the same `pjson` oclif passes into the init hook):
   - `postUrl` (optional string): HTTPS URL of the telemetry proxy that receives POSTed metric batches. Use this when your CLI should send telemetry to a different App Builder action or gateway than the plugin default.
   - `fetchHeaders`: Optional extra headers merged into telemetry requests (`Content-Type` is always set)
-  - `productPrivacyPolicyLink`: A link to display to users when prompting to opt in
-- `productName`: How to refer to the CLI when the user is prompted to enable telemetry (from `displayName` or `name` in `package.json`)
+  - `productPrivacyPolicyLink`: A link shown in the one-time telemetry notice (what is collected and how to opt out)
+- `productName`: How to refer to the CLI in the telemetry notice (from `displayName` or `name` in `package.json`)
 - `productBin`: Shown in help text (from `bin` in `package.json`; if several bins exist, the first is used). Example: run `${productBin} telemetry on`
 
 ### Overriding the telemetry POST URL
@@ -80,7 +80,7 @@ The resolved URL is passed to the flush worker on each telemetry send; it applie
 
 Telemetry is suppressed when `AIO_TELEMETRY_DISABLED` is set to one of **`true`**, **`1`**, or **`yes`** (exact match; case-sensitive). Other values such as `0`, `false`, `no`, or an empty string do **not** disable telemetry via this variable.
 
-This does not change the persisted opt-in state. Useful for CI pipelines and scripted environments.
+This does not change the persisted opt-out state. Useful for CI pipelines and scripted environments.
 
 ```sh
 AIO_TELEMETRY_DISABLED=true aio app deploy
@@ -94,7 +94,7 @@ Telemetry is **best-effort**: events are not persisted when the proxy is down or
 
 On **`postrun`**, any in-memory metrics from earlier hooks in the same command are merged with the `postrun` metric and the combined batch is handed off to a **fire-and-forget detached subprocess** (`src/flush-worker.js`). The parent CLI spawns the worker and immediately `unref()`s it, so the CLI can exit without waiting for the HTTP POST. If the POST fails (network error or non-2xx response), the batch is dropped; telemetry must not block or slow normal CLI use.
 
-Non-`postrun` events (for example `command-error`, `telemetry-prompt`) are held in an **in-memory buffer** until that flush. If the process exits before `postrun` (crash, `SIGKILL`), buffered events are lost. The buffer is cleared when telemetry is disabled or when `init` runs again (new command session).
+Non-`postrun` events (for example `command-error`, `telemetry-notice`) are held in an **in-memory buffer** until that flush. If the process exits before `postrun` (crash, `SIGKILL`), buffered events are lost. The buffer is cleared when telemetry is disabled or when `init` runs again (new command session).
 
 ## Agent detection
 
@@ -122,7 +122,7 @@ To opt into agent tracking without setting a tool-specific variable, set `AIO_IN
 
 ## POST data
 
-The `eventData` attribute is always a string. Objects and arrays are stored as a JSON text (e.g. `"{}"`, `"{\"message\":\"…\"}"`). String payloads (such as telemetry prompt outcomes `accepted` / `declined`) are stored as that plain text without an extra layer of JSON quoting. Numbers and booleans use their usual string forms (`"0"`, `"false"`).
+The `eventData` attribute is always a string. Objects and arrays are stored as a JSON text (e.g. `"{}"`, `"{\"message\":\"…\"}"`). String payloads (such as the telemetry notice outcome `shown`) are stored as that plain text without an extra layer of JSON quoting. Numbers and booleans use their usual string forms (`"0"`, `"false"`).
 
 Example shape of the metric payload:
 

@@ -15,7 +15,6 @@ const TheCommand = require('../src/commands/telemetry')
 const { stdout } = require('stdout-stderr')
 const config = require('@adobe/aio-lib-core-config')
 
-jest.mock('inquirer')
 jest.mock('@adobe/aio-lib-core-config')
 
 const fetch = createFetch()

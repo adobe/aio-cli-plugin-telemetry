@@ -37,17 +37,16 @@ module.exports = async function (opts) {
     opts.argv.filter(arg => arg.indexOf('-') === 0).join(','),
     global.prerunTimer)
 
-  // init event does not post telemetry, it stores some info that will be used later
-  // this will prompt to optIn/Out if telemetry.optIn is undefined
+  // Telemetry is opt-out (on by default). On the first run we show a one-time,
+  // non-blocking notice instead of an opt-in prompt. isNull() is true only until the
+  // notice records the default, so this shows once.
   if ((opts.argv.indexOf('--no-telemetry') < 0) &&
     !inCI &&
     telemetryLib.isNull()) {
-    // let's ask!
-    // unfortunately the `oclif-dev readme` run by prepack fires this event, which hangs CI
-    // Also we don't prompt for telemetry if the first command is a telemetry command because they
-    // are probably setting it on or off already
+    // skip in CI (handled above) and when oclif-dev readme runs (it fires this event);
+    // also skip for telemetry commands, where the user is already setting state.
     if (['readme', 'telemetry'].indexOf(opts.id) < 0) {
-      return telemetryLib.prompt(productName, binName, opts?.config?.pjson?.aioTelemetry?.productPrivacyPolicyLink)
+      telemetryLib.notice(productName, opts?.config?.pjson?.aioTelemetry?.productPrivacyPolicyLink)
     }
   }
 }

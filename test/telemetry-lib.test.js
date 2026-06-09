@@ -35,6 +35,18 @@ describe('telemetry-lib', () => {
 
     expect(telemetryLib.getOnMessage).toBeDefined()
     expect(telemetryLib.getOnMessage).toBeInstanceOf(Function)
+
+    expect(telemetryLib.getNoticeMessage).toBeInstanceOf(Function)
+    expect(telemetryLib.notice).toBeInstanceOf(Function)
+  })
+
+  test('getNoticeMessage uses the default privacy link, or a provided one', async () => {
+    const withDefault = telemetryLib.getNoticeMessage('Adobe Developer CLI')
+    expect(withDefault).toMatch('on by default')
+    expect(withDefault).toMatch('developer.adobe.com/app-builder/docs/guides/telemetry')
+
+    const withLink = telemetryLib.getNoticeMessage('Adobe Developer CLI', 'https://example.com/privacy')
+    expect(withLink).toMatch('https://example.com/privacy')
   })
 
   test('exports init function', async () => {
