@@ -214,7 +214,9 @@ async function trackEvent (eventType, rawEventData = {}) {
       value: 1,
       timestamp,
       attributes: {
-        eventType,
+        // NB: the wire attribute is `eventName`, not `eventType` — `eventType` is a New Relic
+        // reserved word and is dropped on Metric API ingest, so it is unqueryable in NRQL.
+        eventName: eventType,
         eventData: formatEventDataAttribute(eventData),
         cliVersion: rootCliVersion,
         clientId,

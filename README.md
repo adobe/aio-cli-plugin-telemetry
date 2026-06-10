@@ -134,7 +134,7 @@ Example shape of the metric payload:
     "value": 1,
     "timestamp": 1673404918437,
     "attributes": {
-      "eventType": "postrun",
+      "eventName": "postrun",
       "eventData": "{}",
       "cliVersion": "@adobe/aio-cli@11.0.2",
       "clientId": 264421030538,
