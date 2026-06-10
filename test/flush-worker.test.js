@@ -16,7 +16,7 @@ const fetch = createFetch()
 const { main } = require('../src/flush-worker')
 
 const PROXY = 'https://telemetry-proxy.example/api/v1/web/dx-excshell-1/telemetry'
-const METRIC = { name: 'aio.cli.telemetry', type: 'gauge', value: 1, timestamp: 1000, attributes: { eventType: 'postrun' } }
+const METRIC = { name: 'aio.cli.telemetry', type: 'gauge', value: 1, timestamp: 1000, attributes: { eventName: 'postrun' } }
 const BODY = JSON.stringify([{ metrics: [METRIC] }])
 const flushArg = (body = BODY, extraHeaders) => {
   const base = { body, postUrl: PROXY }

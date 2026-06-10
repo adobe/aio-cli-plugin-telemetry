@@ -41,32 +41,32 @@ describe('hook interfaces', () => {
     noticeSpy.mockRestore()
   })
 
-  test('command-error', async () => {
+  // oclif does not run `postrun` after a command throws, so the error hook itself must flush.
+  test('command-error flushes immediately (no postrun follows an error)', async () => {
     config.get.mockImplementation((key) => (String(key).includes('optOut') ? false : 'clientid'))
     telemetryLib.init('name@0.0.1', 'aio', mockPackageJson.aioTelemetry)
     const hook = require('../src/hooks/command-error')
     expect(typeof hook).toBe('function')
     await hook({ message: 'msg' })
-    expect(spawn).not.toHaveBeenCalled()
-    await telemetryLib.trackEvent('postrun')
     expect(spawn).toHaveBeenCalledTimes(1)
     const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
     const body = JSON.parse(flushPayload.body)
-    expect(body[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-error', 'postrun'])
+    expect(body[0].metrics.map((m) => m.attributes.eventName)).toEqual(['command-error'])
+    expect(body[0].metrics[0].attributes.commandSuccess).toBe(false)
   })
 
-  test('command-not-found', async () => {
+  // command-not-found is terminal too: no command runs, so no postrun.
+  test('command-not-found flushes immediately', async () => {
     config.get.mockImplementation((key) => (String(key).includes('optOut') ? false : 'clientid'))
     telemetryLib.init('name@0.0.1', 'aio', mockPackageJson.aioTelemetry)
     const hook = require('../src/hooks/command-not-found')
     expect(typeof hook).toBe('function')
     await hook({ id: 'id' })
-    expect(spawn).not.toHaveBeenCalled()
-    await telemetryLib.trackEvent('postrun')
     expect(spawn).toHaveBeenCalledTimes(1)
     const flushPayloadNf = JSON.parse(spawn.mock.calls[0][1][1])
     const bodyNf = JSON.parse(flushPayloadNf.body)
-    expect(bodyNf[0].metrics.map((m) => m.attributes.eventType)).toEqual(['command-not-found', 'postrun'])
+    expect(bodyNf[0].metrics.map((m) => m.attributes.eventName)).toEqual(['command-not-found'])
+    expect(bodyNf[0].metrics[0].attributes.commandSuccess).toBe(false)
   })
 
   test('init shows one-time notice on first run', async () => {
@@ -83,7 +83,7 @@ describe('hook interfaces', () => {
     expect(spawn).toHaveBeenCalledTimes(1)
     const flushPayloadAcc = JSON.parse(spawn.mock.calls[0][1][1])
     const bodyAcc = JSON.parse(flushPayloadAcc.body)
-    expect(bodyAcc[0].metrics.map((m) => m.attributes.eventType)).toEqual(['telemetry-notice', 'postrun'])
+    expect(bodyAcc[0].metrics.map((m) => m.attributes.eventName)).toEqual(['telemetry-notice', 'postrun'])
     expect(bodyAcc[0].metrics[0].attributes.eventData).toBe('shown')
     process.env = preEnv
   })
@@ -158,7 +158,7 @@ describe('hook interfaces', () => {
     expect(spawn).toHaveBeenCalledTimes(1)
     const flushPayloadCe = JSON.parse(spawn.mock.calls[0][1][1])
     const bodyCe = JSON.parse(flushPayloadCe.body)
-    expect(bodyCe[0].metrics.map((m) => m.attributes.eventType)).toEqual(['telemetry-custom-event', 'postrun'])
+    expect(bodyCe[0].metrics.map((m) => m.attributes.eventName)).toEqual(['telemetry-custom-event', 'postrun'])
   })
 
   test('postrun', async () => {
@@ -170,7 +170,7 @@ describe('hook interfaces', () => {
     expect(spawn).toHaveBeenCalledTimes(1)
     const flushPayload = JSON.parse(spawn.mock.calls[0][1][1])
     expect(flushPayload.headers).toBeUndefined()
-    expect(flushPayload.body).toContain('"eventType":"postrun"')
+    expect(flushPayload.body).toContain('"eventName":"postrun"')
   })
 
   /**

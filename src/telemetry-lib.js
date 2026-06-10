@@ -26,8 +26,17 @@ function isEnvTelemetryDisabled () {
 
 let isDisabledForCommand = false
 
-/** Metrics for non-`postrun` events in the current command; merged into one POST on `postrun`. */
+/** Metrics for non-terminal events in the current command; merged into the POST on a terminal event. */
 const pendingCommandMetrics = []
+
+/** Events with no `postrun` after them; each flushes immediately so error telemetry isn't lost. */
+const TERMINAL_EVENTS = ['postrun', 'command-error', 'command-not-found']
+
+/** Events that mean the command did not succeed (so `commandSuccess` is false). */
+const FAILED_COMMAND_EVENTS = ['command-error', 'command-not-found']
+
+/** Set by `command-not-found` so we can drop the host's immediate `command-error` rethrow of the same typo. */
+let commandNotFoundFired = false
 
 /**
  * Detects GitHub Copilot Chat on PATH via the extension id in globalStorage paths (any OS path separator).
@@ -173,9 +182,10 @@ function formatEventDataAttribute (eventData) {
 }
 
 /**
- * Records a telemetry event. Non-`postrun` metrics are held in memory and sent in a single
- * batched POST when `postrun` runs. When enabled, the flush worker is detached so the CLI
- * never waits on the network; failed deliveries are dropped (no disk queue).
+ * Records a telemetry event. Non-terminal metrics are held in memory and sent in a single
+ * batched POST on the next terminal event (`postrun`, `command-error`, `command-not-found`).
+ * When enabled, the flush worker is detached so the CLI never waits on the network; failed
+ * deliveries are dropped (no disk queue).
  *
  * @param {string} eventType prerun, postrun, command-error, command-not-found, telemetry
  * @param {object|string|number|undefined} [rawEventData] Optional hook payload (e.g. `{ message }` on errors).
@@ -204,14 +214,16 @@ async function trackEvent (eventType, rawEventData = {}) {
       value: 1,
       timestamp,
       attributes: {
-        eventType,
+        // NB: the wire attribute is `eventName`, not `eventType` — `eventType` is a New Relic
+        // reserved word and is dropped on Metric API ingest, so it is unqueryable in NRQL.
+        eventName: eventType,
         eventData: formatEventDataAttribute(eventData),
         cliVersion: rootCliVersion,
         clientId,
         command: prerunEvent.command,
         commandDuration: timestamp - prerunEvent.start,
         commandFlags: prerunEvent.flags.toString(),
-        commandSuccess: eventType !== 'command-error',
+        commandSuccess: !FAILED_COMMAND_EVENTS.includes(eventType),
         nodeVersion: process.version,
         osNameVersion,
         invocation_context: /* istanbul ignore next */ invocationContext.isAgent ? 'agent' : 'human',
@@ -219,8 +231,18 @@ async function trackEvent (eventType, rawEventData = {}) {
       }
     }
 
-    if (eventType !== 'postrun') {
+    // Non-terminal events buffer; terminal events flush (oclif runs no postrun after error/not-found).
+    if (!TERMINAL_EVENTS.includes(eventType)) {
       pendingCommandMetrics.push(metric)
+      return
+    }
+
+    // A typo fires command-not-found, then the host rethrows it as command-error; drop that rethrow.
+    if (eventType === 'command-not-found') {
+      commandNotFoundFired = true
+    } else if (eventType === 'command-error' && commandNotFoundFired) {
+      commandNotFoundFired = false
+      debug('dropping command-error that rethrows a command-not-found (same typo)')
       return
     }
 
@@ -253,12 +275,15 @@ async function trackEvent (eventType, rawEventData = {}) {
  */
 function trackPrerun (command, flags, start) {
   prerunEvent = { command, flags, start }
+  // A real command is now running (e.g. an accepted "did you mean" suggestion), so its errors count.
+  commandNotFoundFired = false
 }
 
 module.exports = {
   getInvocationContext,
   init: (versionString, binName, remoteConf = {}) => {
     pendingCommandMetrics.length = 0
+    commandNotFoundFired = false
     global.commandHookStartTime = Date.now()
     rootCliVersion = versionString
     postUrl = remoteConf.postUrl || process.env.AIO_TELEMETRY_POST_URL || DEFAULT_TELEMETRY_POST_URL
